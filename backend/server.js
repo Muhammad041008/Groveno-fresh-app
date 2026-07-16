@@ -23,7 +23,7 @@ const app = express();
 
 // Middleware
 app.use(helmet({ crossOriginResourcePolicy: false }));
-app.use(cors({ origin: process.env.CORS_ORIGINS === '*' ? true : process.env.CORS_ORIGINS.split(','), credentials: true }));
+app.use(cors({ origin: (process.env.CORS_ORIGINS || '*') === '*' ? true : (process.env.CORS_ORIGINS || '*').split(','), credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
