@@ -70,6 +70,6 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Optional: server-side email/IFSC format validators on PUT /api/cl/profile.
 
 ## Public URLs
-- App: https://groveno-app.preview.emergentagent.com
+- App: https://delivery-coins.preview.emergentagent.com
 - Admin: /login → /dashboard
 - CL Panel: /cl/login → /cl/dashboard

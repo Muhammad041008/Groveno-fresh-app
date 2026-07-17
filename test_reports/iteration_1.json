@@ -33,6 +33,6 @@
   "seed_data_creation": "Used existing seed data (10 products, 5 categories, 2 pickup points, 1 CL, 1 admin). Tests created several TEST_-prefixed users/orders/categories/products/pickup-points; test flow tolerates residual data through unique timestamp suffixes on re-runs.",
   "retest_needed": false,
   "should_main_agent_self_test": true,
-  "context_for_next_testing_agent": "Backend at https://groveno-app.preview.emergentagent.com/api. Full pytest suite in /app/backend/tests/backend_test.py — reusable for regression. All 65 tests currently pass. If Categories/Products create tests fail with duplicate-key on rerun, timestamps in test names already handle that, so failure would indicate a real regression. To reseed: `cd /app/backend && npm run seed`. Frontend not implemented/tested yet.",
+  "context_for_next_testing_agent": "Backend at https://delivery-coins.preview.emergentagent.com/api. Full pytest suite in /app/backend/tests/backend_test.py — reusable for regression. All 65 tests currently pass. If Categories/Products create tests fail with duplicate-key on rerun, timestamps in test names already handle that, so failure would indicate a real regression. To reseed: `cd /app/backend && npm run seed`. Frontend not implemented/tested yet.",
   "rca_of_the_issue": "N/A — no bugs, all tests pass. Only optional hardening recommendations noted under minor issues."
 }
