@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 3 - Groveno Fresh CL Panel. Backend: 103/103 pytest pass (65 iter1 + 15 iter2 referral/SSE + 23 new CL panel). All 4 new CL endpoints working correctly: GET /api/cl/me (with 401 on missing/admin/customer tokens), PUT /api/cl/profile (bankDetails persistence + partial merge), POST /api/cl/change-password (wrong old->400, short new->400, valid flow with re-login, revert), GET /api/cl/earnings (summary math + commissionRate=0.05 + history array). Regression: cl login, /api/cl/dashboard, /api/orders/cl-order and /api/cl/orders/:id/deliver still work; commission credited on delivery; idempotent on double-deliver. Frontend: full E2E walk of all 8 CL pages on 480x900 mobile viewport. CL Login prefill + wrong-password toast + successful login stores 'groveno_cl_token' + redirects to /cl/dashboard. Protected route /cl/dashboard redirects to /cl/login when no token. Bottom nav navigates to all 5 tabs (dashboard/orders/earnings/qr/profile). Dashboard shows all 4 stat cards. Orders page: 3 filter tabs, search input, bulk button work; clicking an order link navigates to /cl/orders/:id. Bulk order page: heading 'Place Order for My Community', customer-0 form, add-customer appends customer-1. Order Detail: shows masked phone '91XXX22333' correctly. QR page: api.qrserver.com image loads, CL code 'CL12345', copy/download/whatsapp buttons, scan analytics visible. Earnings page: balance card + 3 mini stats + withdraw btn disabled. Profile: cl-profile-code shows 'CL12345', bank fields update and PERSIST after PUT /api/cl/profile (verified via reload). Logout clears token and redirects to /cl/login. Admin panel regression: /login -> /dashboard works with admin@groveno.com/Admin@123, 10 sidebar nav items intact, no CL leakage. CL password reverted to CL@123 at end of run (verified by explicit final login test).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cl/me", "issue": "Response returns Mongoose document with raw '_id', '__v' fields alongside virtual 'id' (from toJSON override). Not a bug, but consumers should treat both as valid id sources. This is consistent with rest of API (pre-existing pattern from iter 1)."},
+      {"endpoint": "PUT /api/cl/profile", "issue": "Endpoint does not validate email format or IFSC format server-side. If frontend passes an invalid email, it will be lowercased and saved as-is. Consider adding format validators."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global (react-router)", "issues": ["Non-critical console warnings persist: React Router future flag warnings (v7_startTransition, v7_relativeSplatPath) — carry-over from iter 2, not blocking."]},
+      {"screen": "CL Login page", "issues": ["Toasts (react-hot-toast) stack in top-right and can briefly overlap the primary submit button on very short viewports; playwright had one intermittent click miss on cl-btn-bulk immediately after login toast. Resolved by waiting ~1.5s for toast to fade. Consider auto-dismissing 'Welcome back!' faster or placing toasts under the header."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cl_panel.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_referral_and_stream.py",
+    "/app/test_reports/pytest/iter3_cl_panel.xml",
+    "/app/test_reports/pytest/iter3_all.xml"
+  ],
+  "action_items": [
+    "None blocking — all requested features work end-to-end.",
+    "Optional: add server-side format validation for email and IFSC in PUT /api/cl/profile.",
+    "Optional: shorten 'Welcome back!' toast duration or move to bottom to avoid overlapping header/submit buttons on narrow viewports."
+  ],
+  "critical_code_review_comments": [
+    "cl.controller.js:updateProfile: uses `bankDetails.accountHolder ?? req.cl.bankDetails?.accountHolder ?? ''` — good merge semantics. However there is no way to clear a bank field explicitly (setting to '' works, but sending null falls back to existing). Acceptable trade-off.",
+    "cl.controller.js:earnings computes startOfWeek using now.getDay() (Sunday=0). In India most week views start on Monday. Verify with product before shipping — currently 'thisWeek' rolls over on Sunday midnight local server time.",
+    "CLOrderDetail.jsx fetches all orders via GET /cl/orders?limit=200 and then finds by id client-side. Not a bug at current scale but O(N) and wasteful. Consider adding GET /api/cl/orders/:id.",
+    "CLQrCode.jsx computes 'ordersFromQR' as `stats.totalOrders` — this is TOTAL orders, not orders from QR specifically. Label is misleading. Suggest a separate counter or rename UI to 'Total Orders'.",
+    "CommunityLeader.toJSON drops passwordHash but still exposes __v and _id. Add a global toJSON transform for consistency (carry-over from iter 1 minor)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cl_panel.py"
+  ],
+  "success_rate": {"backend": "100% (103/103)", "frontend": "100% for tested CL flows (login/logout/protected, dashboard, orders+filter+search, order detail with phone masking, bulk order + add customer, earnings, QR, profile save persistence) + admin regression"},
+  "test_credentials": "CL: cl@groveno.com / CL@123 (clCode CL12345, status approved) [password confirmed reverted at end of run]. Admin: admin@groveno.com / Admin@123. Customer: any phone + OTP 123456.",
+  "seed_data_creation": "Backend tests created +919000112233 (customer), TEST_Iter3_Customer CL order (delivered), and profile bank name set to PW_BANK_2026 on cl@groveno.com. No destructive changes.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Full regression: `pytest /app/backend/tests/ -v` → 103 passing (iter1 backend_test.py + iter2 test_referral_and_stream.py + iter3 test_cl_panel.py). CL panel testids: cl-page-{dashboard,orders,order-detail,bulk,earnings,qr,profile}, cl-nav-{dashboard,orders,earnings,qr,profile}, cl-bottom-nav, cl-btn-logout, cl-login-{form,email,password,submit}, cl-stat-{today-orders,today-earnings,pending,delivered-today}, cl-quick-deliver-<id>, cl-tab-{all,pending,delivered}, cl-orders-search, cl-btn-bulk, cl-order-card-<id>, cl-deliver-<id>, cl-detail-deliver-btn, cl-bulk-{customer,name,addr,item}-<i>, cl-bulk-{add-customer,submit}, cl-earn-{balance,today,week,month,row-<id>}, cl-withdraw-btn, cl-qr-{image,code-text,link,copy,download,whatsapp}, cl-total-scans, cl-orders-from-qr, cl-profile-{code,name,email,save}, cl-bank-{holder,account,ifsc,name}, cl-pw-{old,new,submit}. Token key: localStorage 'groveno_cl_token'. Admin token key: 'groveno_admin_token'. Phone masking format: '91XXX22333' (first 2 + XXX + last 5).",
+  "rca_of_the_issue": "N/A — no defects. All new CL endpoints and UI flows work as specified in the PRD."
+}

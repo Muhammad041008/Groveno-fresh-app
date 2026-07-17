@@ -134,3 +134,82 @@ exports.markDelivered = asyncHandler(async (req, res) => {
   await order.save();
   return res.json({ success: true, order });
 });
+
+// GET /api/cl/me
+exports.me = asyncHandler(async (req, res) => {
+  return res.json({ success: true, cl: req.cl });
+});
+
+// PUT /api/cl/profile — name, email, bank details
+exports.updateProfile = asyncHandler(async (req, res) => {
+  const { name, email, bankDetails } = req.body;
+  if (name !== undefined) req.cl.name = name;
+  if (email !== undefined) req.cl.email = String(email).toLowerCase();
+  if (bankDetails && typeof bankDetails === 'object') {
+    req.cl.bankDetails = {
+      accountHolder: bankDetails.accountHolder ?? req.cl.bankDetails?.accountHolder ?? '',
+      accountNumber: bankDetails.accountNumber ?? req.cl.bankDetails?.accountNumber ?? '',
+      ifsc: bankDetails.ifsc ?? req.cl.bankDetails?.ifsc ?? '',
+      bankName: bankDetails.bankName ?? req.cl.bankDetails?.bankName ?? '',
+    };
+  }
+  await req.cl.save();
+  return res.json({ success: true, cl: req.cl });
+});
+
+// POST /api/cl/change-password
+exports.changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) return res.status(400).json({ success: false, message: 'oldPassword and newPassword required' });
+  if (newPassword.length < 6) return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+  const ok = await req.cl.comparePassword(oldPassword);
+  if (!ok) return res.status(400).json({ success: false, message: 'Incorrect current password' });
+  await req.cl.setPassword(newPassword);
+  await req.cl.save();
+  return res.json({ success: true, message: 'Password updated' });
+});
+
+// GET /api/cl/earnings — summary + history
+exports.earnings = asyncHandler(async (req, res) => {
+  const cl = req.cl;
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+  startOfWeek.setHours(0, 0, 0, 0);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [today, week, month] = await Promise.all([
+    Order.aggregate([
+      { $match: { clId: cl._id, clCommissionCredited: true, deliveredAt: { $gte: startOfDay } } },
+      { $group: { _id: null, commission: { $sum: '$clCommission' }, orders: { $sum: 1 } } },
+    ]),
+    Order.aggregate([
+      { $match: { clId: cl._id, clCommissionCredited: true, deliveredAt: { $gte: startOfWeek } } },
+      { $group: { _id: null, commission: { $sum: '$clCommission' }, orders: { $sum: 1 } } },
+    ]),
+    Order.aggregate([
+      { $match: { clId: cl._id, clCommissionCredited: true, deliveredAt: { $gte: startOfMonth } } },
+      { $group: { _id: null, commission: { $sum: '$clCommission' }, orders: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const history = await Order.find({ clId: cl._id, clCommissionCredited: true })
+    .sort({ deliveredAt: -1 })
+    .limit(100)
+    .select('orderNumber itemsTotal total clCommission deliveredAt createdAt');
+
+  return res.json({
+    success: true,
+    summary: {
+      allTime: cl.totalCommission || 0,
+      thisMonth: month?.[0]?.commission || 0,
+      thisWeek: week?.[0]?.commission || 0,
+      today: today?.[0]?.commission || 0,
+      walletBalance: cl.walletBalance || 0,
+      totalOrders: cl.totalOrders || 0,
+    },
+    commissionRate: 0.05,
+    history,
+  });
+});

@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const BankDetailsSchema = new mongoose.Schema({
+  accountHolder: { type: String, default: '' },
+  accountNumber: { type: String, default: '' },
+  ifsc: { type: String, default: '' },
+  bankName: { type: String, default: '' },
+}, { _id: false });
+
 const CommunityLeaderSchema = new mongoose.Schema({
   name: { type: String, required: true },
   phone: { type: String, required: true, unique: true },
@@ -12,6 +19,7 @@ const CommunityLeaderSchema = new mongoose.Schema({
   totalOrders: { type: Number, default: 0 },
   totalCommission: { type: Number, default: 0 },
   walletBalance: { type: Number, default: 0 },
+  bankDetails: { type: BankDetailsSchema, default: () => ({}) },
   qrScans: {
     poster: { type: Number, default: 0 },
     whatsapp: { type: Number, default: 0 },
