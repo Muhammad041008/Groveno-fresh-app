@@ -81,6 +81,8 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
   }
   if (status === 'cancelled') order.cancelledAt = new Date();
   await order.save();
+  const { bus, EVENTS } = require('../utils/eventBus');
+  bus.emit(EVENTS.ORDER_STATUS_CHANGED, { orderId: order._id.toString(), status, order });
   return res.json({ success: true, order });
 });
 

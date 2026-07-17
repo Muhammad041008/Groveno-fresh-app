@@ -25,6 +25,14 @@ const UserSchema = new mongoose.Schema({
   ratingSkipCount: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
   lastLoginAt: { type: Date, default: null },
+
+  // Referral
+  referralCode: { type: String, unique: true, sparse: true, index: true }, // 6-8 char, e.g. GRVX2K
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  referredByCode: { type: String, default: null },
+  firstOrderPlaced: { type: Boolean, default: false },
+  referralRewardsGiven: { type: Number, default: 0 }, // count of referred friends who placed 1st order
+  referralCoinsEarned: { type: Number, default: 0 },
 }, { timestamps: true });
 
 UserSchema.methods.toJSON = function () {

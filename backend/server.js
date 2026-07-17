@@ -18,6 +18,8 @@ const walletRoutes = require('./src/routes/wallet.routes');
 const coinsRoutes = require('./src/routes/coins.routes');
 const paymentRoutes = require('./src/routes/payment.routes');
 const qrRoutes = require('./src/routes/qr.routes');
+const referralRoutes = require('./src/routes/referral.routes');
+const streamRoutes = require('./src/routes/stream.routes');
 
 const app = express();
 
@@ -46,6 +48,8 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/coins', coinsRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/referral', referralRoutes);
+app.use('/api/stream', streamRoutes);
 
 // 404
 app.use('/api/*', (req, res) => res.status(404).json({ success: false, message: `Route not found: ${req.originalUrl}` }));

@@ -10,6 +10,8 @@ const {
   generatePickupOtp,
   haversineKm,
 } = require('../utils/helpers');
+const { maybeCreditReferrer } = require('./referral.controller');
+const { bus, EVENTS } = require('../utils/eventBus');
 
 // ==== Constants (business rules) ====
 const FREE_DELIVERY_THRESHOLD = 199;
@@ -146,6 +148,11 @@ exports.homeDelivery = asyncHandler(async (req, res) => {
     });
   }
 
+  // Referral reward: if this is the user's first order, credit referrer
+  await maybeCreditReferrer(req.user, order);
+
+  bus.emit(EVENTS.ORDER_CREATED, { order });
+
   return res.status(201).json({ success: true, order });
 });
 
@@ -210,6 +217,10 @@ exports.expressPickup = asyncHandler(async (req, res) => {
       description: `Redeemed on order ${order.orderNumber}`,
     });
   }
+
+  // Referral reward + broadcast
+  await maybeCreditReferrer(req.user, order);
+  bus.emit(EVENTS.ORDER_CREATED, { order });
 
   return res.status(201).json({
     success: true,

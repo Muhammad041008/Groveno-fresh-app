@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { asyncHandler } = require('../utils/helpers');
+const { ensureReferralCode } = require('./referral.controller');
 
 // In-memory OTP store for dev. Firebase Phone Auth compatible interface.
 const otpStore = new Map(); // phone -> { otp, expiresAt }
@@ -56,6 +57,8 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   }
   user.lastLoginAt = new Date();
   await user.save();
+  // Ensure user has a referral code
+  await ensureReferralCode(user);
 
   const token = issueCustomerToken(user);
 

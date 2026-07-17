@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 2 — Groveno Fresh admin panel + referral + SSE. Backend: 80/80 pytest tests pass (65 regression + 8 referral basics + 2 referral reward flow + 4 SSE unauthorized + 1 SSE end-to-end). Frontend: all 13 admin panel pages load, sidebar navigation (10 nav items) works, login/logout token flow works, protected route redirects to /login when unauthenticated. Dashboard renders 4 stat cards, 3 channel cards, Recharts line chart and Recent Orders table. Products page shows 10 seeded products, search filter works, Add Product navigates to /products/new form. Categories page shows categories with btn-add-category present. Orders page filters + row-click navigates to /orders/:id with order-status-dropdown visible. Users list → User detail shows credit-amount/credit-desc/credit-submit inputs. Pickup Points, CLs, Wallet, Reports all render. Reports has Recharts bars (4), pie sectors (5) and btn-export-csv. Express Pickup page shows 'Live' badge. Backend referral flow validated end-to-end: user B applies A's code → B places first order → A gets +10 coins + CoinTransaction {source:'referral', amount:10, expiresAt≈90d}. Second order does NOT credit A again. SSE endpoints return 401 without/with wrong token; with valid token they emit 'snapshot' event + 'location' event when POST /orders/:id/location-update fires.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "referral / coins", "issue": "CoinTransaction created for referrer looks correct, but CoinTransaction and other Mongo docs still expose raw _id/__v in JSON responses (pre-existing minor from iter 1)."},
+      {"endpoint": "SSE keep-alive", "issue": "Comment-only lines (: ping) are sent every 20s — good. HTTP client timeout must be > 5s to reliably catch first snapshot event through the Cloudflare/ingress path (~1-2s buffering). Not a bug, but SSE consumers should set connect timeout separately from read timeout."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global (react-router)", "issues": ["Non-critical console warnings: 'React Router Future Flag Warning' for v7_startTransition and v7_relativeSplatPath — recommend opting into future flags on RouterProvider or Routes config."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_referral_and_stream.py",
+    "/app/test_reports/pytest/iter2_all.xml"
+  ],
+  "action_items": [
+    "None blocking. Optional: opt-in to react-router v7 future flags to silence warnings.",
+    "Optional (carry-over from iter 1): strip _id/__v from JSON responses via toJSON transform; normalize Mongoose ValidationError to 400 via errorHandler."
+  ],
+  "critical_code_review_comments": [
+    "referral.controller.js `maybeCreditReferrer` mutates user & referrer sequentially without a DB transaction — with concurrent duplicate first-orders it could race and credit twice. In dev/single-instance MongoDB this hasn't triggered, but under load with retries this could be a concurrency bug. Consider a compare-and-set on firstOrderPlaced (User.updateOne({_id, firstOrderPlaced: {$ne: true}}, {$set: {firstOrderPlaced: true}}) and only credit if modifiedCount === 1).",
+    "referral.controller.js sets `referrer.coinsExpiresAt = expiresAt` unconditionally — this may shorten an existing longer expiry if the referrer already has coins expiring later. Consider taking the max of current and new.",
+    "stream.controller.js verifies JWT but does not enforce that admin token has role === 'admin' from a fresh Admin doc lookup for each event (only at connect time). Acceptable for short-lived tokens.",
+    "location.controller.js emits ORDER_STATUS_CHANGED with plain string status — customer stream filters on orderId only. Fine, but include `status` in the event payload consistently (already does)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_referral_and_stream.py"
+  ],
+  "success_rate": {"backend": "100% (80/80)", "frontend": "100% for tested flows (login, protected routes, navigation across 10 pages, dashboard, products, categories, orders, users, user-detail, pickup-points, CLs, wallet, reports, express-pickup)"},
+  "test_credentials": "Admin: admin@groveno.com / Admin@123 | CL: cl@groveno.com / CL@123 (clCode CL12345) | Customer: any phone with OTP 123456. See /app/memory/test_credentials.md.",
+  "seed_data_creation": "Tests created new customers with random phones like +9199001xxxxx, +9199010xxxxx, +9199020xxxxx, +9199040xxxxx for referral/SSE flows. All TEST-prefixed. To reseed base data: cd /app/backend && npm run seed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Full regression suite: pytest /app/backend/tests/ -v (80 tests). Referral + SSE-specific tests: /app/backend/tests/test_referral_and_stream.py. Frontend uses VITE_API_URL from /app/frontend/.env pointing at https://groveno-app.preview.emergentagent.com. Admin token stored in localStorage under key 'groveno_admin_token'. SSE endpoints require ?token= query param (EventSource limitation). Dashboard, Products, Categories, Orders, Users pages all confirmed working. Express Pickup shows 'Live' badge (SSE connected). Referral reward is credited synchronously (awaited) in order.controller.js.",
+  "rca_of_the_issue": "N/A — no bugs found. All backend endpoints (including new referral + SSE) and all admin panel UI flows work correctly."
+}

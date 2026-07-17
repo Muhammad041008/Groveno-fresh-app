@@ -4,6 +4,7 @@ const User = require('../models/User');
 const CommunityLeader = require('../models/CommunityLeader');
 const CoinTransaction = require('../models/CoinTransaction');
 const { asyncHandler, haversineKm } = require('../utils/helpers');
+const { bus, EVENTS } = require('../utils/eventBus');
 
 // Customer starts express pickup tracking
 exports.startTracking = asyncHandler(async (req, res) => {
@@ -15,6 +16,7 @@ exports.startTracking = asyncHandler(async (req, res) => {
   order.trackingStartedAt = new Date();
   order.status = 'customer_on_way';
   await order.save();
+  bus.emit(EVENTS.ORDER_STATUS_CHANGED, { orderId: order._id.toString(), status: 'customer_on_way', order });
 
   return res.json({
     success: true,
@@ -40,6 +42,13 @@ exports.locationUpdate = asyncHandler(async (req, res) => {
   if (order.locationPings.length > 50) order.locationPings = order.locationPings.slice(-50);
   await order.save();
 
+  // Broadcast to SSE subscribers
+  bus.emit(EVENTS.LOCATION_UPDATE, {
+    orderId: order._id.toString(),
+    orderNumber: order.orderNumber,
+    lat, lng, distanceToHub: computedDist, ts: new Date(),
+  });
+
   return res.json({ success: true, distanceToHub: computedDist });
 });
 
@@ -49,6 +58,8 @@ exports.arrived = asyncHandler(async (req, res) => {
   order.status = 'arrived';
   order.arrivedAt = new Date();
   await order.save();
+  bus.emit(EVENTS.PICKUP_ARRIVED, { orderId: order._id.toString(), order });
+  bus.emit(EVENTS.ORDER_STATUS_CHANGED, { orderId: order._id.toString(), status: 'arrived', order });
   return res.json({ success: true, order, verificationCode: order.pickupOtp });
 });
 
@@ -69,6 +80,7 @@ exports.collected = asyncHandler(async (req, res) => {
   order.paymentStatus = order.paymentStatus === 'paid' ? 'paid' : 'paid';
   await creditCoinsIfCLOrder(order);
   await order.save();
+  bus.emit(EVENTS.ORDER_STATUS_CHANGED, { orderId: order._id.toString(), status: 'collected', order });
   return res.json({ success: true, order });
 });
 
