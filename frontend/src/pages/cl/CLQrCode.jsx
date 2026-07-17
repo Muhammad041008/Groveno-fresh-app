@@ -94,7 +94,7 @@ export default function CLQrCode() {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-brand-700" data-testid="cl-orders-from-qr">{ordersFromQR}</div>
-            <div className="text-[11px] text-slate-500 uppercase tracking-wider">Orders</div>
+            <div className="text-[11px] text-slate-500 uppercase tracking-wider">Total Orders</div>
           </div>
         </div>
         <div className="border-t border-slate-100 pt-3 space-y-1.5 text-sm">

@@ -1,61 +1,75 @@
 # Groveno Fresh - Product Requirements Document
 
 ## Original Problem Statement
-Groveno Fresh — a community grocery delivery app with 3 order channels + Admin Panel.
+Groveno Fresh — a community grocery delivery app with 3 order channels + Admin Panel + CL Panel.
 
 ## Tech Stack
 ### Backend
-- Node.js 20 + Express 4
-- MongoDB via Mongoose 8
+- Node.js 20 + Express 4, MongoDB via Mongoose 8
 - JWT (separate secrets: customer / admin / CL)
-- bcryptjs, cors, helmet, morgan, uuid
-- Server-Sent Events (in-process EventEmitter bus, no external broker)
+- Server-Sent Events (in-process EventEmitter bus)
+- All routes prefixed `/api`
 
-### Frontend (Admin Panel)
-- React 18 + Vite 5
-- Tailwind CSS 3 with brand green palette (#22C55E primary, #14532D dark)
-- React Router v6 (protected routes via `Protected` wrapper)
-- Axios with token interceptor (localStorage `groveno_admin_token`)
-- Recharts (Line + Bar + Pie)
-- lucide-react icons, react-hot-toast
+### Frontend
+- React 18 + Vite 5 + Tailwind CSS 3 (brand green #22C55E)
+- React Router v6 (protected routes)
+- Axios + Recharts + lucide-react + react-hot-toast
+- Two apps in one bundle:
+  - Admin Panel at `/` (sidebar-based, desktop-first)
+  - CL Panel at `/cl` (bottom-nav, mobile-first, max-w-[480px] centered)
 
-## Architecture
-- Supervisor runs `node server.js` on 0.0.0.0:8001 and `yarn dev` (Vite) on 0.0.0.0:3000.
-- All API routes prefixed with `/api`.
-- Mongo via `MONGO_URL` + `DB_NAME`.
-- Frontend uses `VITE_API_URL` (falls back to `REACT_APP_BACKEND_URL`).
+## Auth Model
+- Customer: OTP via `/api/auth/*` (Mock OTP 123456)
+- Admin: `admin@groveno.com` / `Admin@123` — localStorage `groveno_admin_token`
+- CL: `cl@groveno.com` / `CL@123` (code `CL12345`) — localStorage `groveno_cl_token`
 
 ## Three Order Channels + Business Rules
 1. Home Delivery — free ≥ ₹199, else ₹30; +₹15 for `express_30min`.
-2. Express Pickup — 5% discount, ₹30 confirmation, 4-digit OTP, live location tracking.
+2. Express Pickup — 5% discount, ₹30 confirmation, 4-digit OTP, live location tracking via SSE.
 3. CL Order/Bulk — 5% commission auto-credited to CL wallet on delivery.
 
-Coins: 50 first CL / 15 repeat CL / +5 rating bonus / +10 referral. 90-day expiry (max-of-current-and-new when re-earning). Min order ₹200, max 20% redemption per order.
+## Coins & Referral
+- 50 first CL / 15 repeat CL / +5 rating bonus / +10 referral (atomic first-order flip).
+- 90-day expiry (max-of-current-and-new). Min order ₹200, max 20% redemption.
 
-## Referral System (Iter 2)
-- Every customer auto-gets a `referralCode` (format `GRV[A-Z0-9]{4}`).
-- `GET /api/referral/me` → { referralCode, shareUrl, referralCoinsPerFriend:10, stats }.
-- `POST /api/referral/apply { referralCode }` → links user → referrer.
-- On the referred user's FIRST order (any channel), referrer gets +10 coins (atomic compare-and-set on `firstOrderPlaced` to prevent double-credit under concurrency).
-
-## Real-Time (SSE) (Iter 2)
-- `GET /api/stream/orders/:id/stream?token=<customerJWT>` — per-order snapshot + `location` + `status` events.
-- `GET /api/stream/admin/express-pickup/stream?token=<adminJWT>` — global feed for the Express Pickup Live board.
-- Bus events: `LOCATION_UPDATE`, `ORDER_STATUS_CHANGED`, `ORDER_CREATED`, `PICKUP_ARRIVED`.
-- 20s keep-alive; auto-cleanup on client disconnect.
+## Real-Time SSE
+- `/api/stream/orders/:id/stream?token=…` (customer per-order)
+- `/api/stream/admin/express-pickup/stream?token=…` (admin live board)
+- Events: `snapshot`, `location`, `status`, `arrived`, `created`. 20s keep-alive.
 
 ## What's Implemented (Feb 2026)
-- Iteration 1 (backend): full 3-channel orders, auth (customer/admin/CL), products/categories/pickup-points, coins/wallet, admin dashboard/reports, mock payment, QR tracking, ratings.
-- Iteration 2 (backend): referral flow + SSE live streams; concurrency-safe first-order credit.
-- Iteration 2 (frontend): Complete Admin Panel — Login, Dashboard, Products (list + form), Categories, Orders (list + detail with status change), Express Pickup Live (SSE-powered), Pickup Points CRUD, Users (list + detail with wallet credit), Community Leaders (approve/reject/suspend), Wallet search+credit, Reports (revenue bar, QR pie, Top products/CLs, CSV export).
-- Data-testids present on every interactive element.
+### Iteration 1 (Backend base)
+- Auth (customer/admin/CL), products/categories/pickup-points, 3-channel orders, coins/wallet, admin dashboard/reports, mock payment, QR tracking, ratings — **65/65 tests pass**.
 
-## Sidebar Navigation (10 items)
-Dashboard · Products · Categories · Orders · Express Pickup · Pickup Points · Users · Community Leaders · Wallet · Reports + Logout.
+### Iteration 2 (Referral + SSE + Admin Panel)
+- Referral endpoints (`/api/referral/me`, `/apply`) + first-order credit hook.
+- SSE bus + 2 stream endpoints.
+- Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
+- **80/80 backend + 100% UI tests pass**.
+
+### Iteration 3 (CL Panel)
+- New CL endpoints: `GET /api/cl/me`, `PUT /api/cl/profile` (with bank details), `POST /api/cl/change-password`, `GET /api/cl/earnings` (today/week/month/allTime).
+- CommunityLeader model: added `bankDetails` subdocument.
+- Mobile-first CL Panel (max-w-[480px], bottom nav) — 8 pages:
+  1. CLLogin
+  2. CLDashboard — 4 stat cards + quick "Mark Delivered"
+  3. CLOrders — All/Pending/Delivered tabs + search + Mark Delivered
+  4. CLOrderDetail — masked phone, items, address, 5% commission card
+  5. CLBulkOrder — multi-customer bulk placement (POST /orders/cl-bulk)
+  6. CLEarnings — wallet card + today/week/month stats + history + "Withdraw (Coming Soon)"
+  7. CLQrCode — QR image via api.qrserver.com, download, WhatsApp share, scan analytics
+  8. CLProfile — CL code prominent, editable name/email + bank details + change password
+- **103/103 backend tests + 100% CL Panel UI flows pass**.
 
 ## Backlog / Next Actions
-- Real Firebase Phone Auth (interface compatible).
-- Real Razorpay HMAC verify (code present, currently permissive in dev).
-- Push notifications on order lifecycle.
+- Real Firebase Phone Auth + real Razorpay HMAC (interfaces compatible, code present).
+- Push notifications on order lifecycle (out_for_delivery, arrived, delivered).
 - Customer-facing mobile app (React Native or PWA).
-- CL dashboard/webapp UI.
+- CL commission auto-payout via Razorpay Payouts (currently manual "Withdraw — coming soon").
+- Product suggestions in Reports: consider Monday-based week aggregation for India (currently Sunday-based).
+- Optional: server-side email/IFSC format validators on PUT /api/cl/profile.
+
+## Public URLs
+- App: https://groveno-app.preview.emergentagent.com
+- Admin: /login → /dashboard
+- CL Panel: /cl/login → /cl/dashboard
