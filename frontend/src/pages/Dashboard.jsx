@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, IndianRupee, Users2, BadgeCheck, Zap, Truck, Home } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -12,30 +12,29 @@ export default function Dashboard() {
   const [recent, setRecent] = useState([]);
   const [chart, setChart] = useState([]);
 
-  useEffect(() => {
-    (async () => {
-      const [dash, orders] = await Promise.all([
-        api.get('/admin/dashboard'),
-        api.get('/admin/orders?limit=8&page=1'),
-      ]);
-      setStats(dash.data);
-      setRecent(orders.data.orders);
-      // Build 7-day revenue chart from recent orders (client-side aggregation)
-      const days = [];
-      const now = new Date();
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        days.push({ date: d.toISOString().slice(0, 10), label: fmtDay(d), revenue: 0 });
-      }
-      const all = await api.get('/admin/orders?limit=200&page=1');
-      all.data.orders.forEach((o) => {
-        const d = new Date(o.deliveredAt || o.createdAt).toISOString().slice(0, 10);
-        const row = days.find((x) => x.date === d);
-        if (row && ['delivered', 'collected'].includes(o.status)) row.revenue += o.total || 0;
-      });
-      setChart(days);
-    })();
+  const loadAll = useCallback(async () => {
+    const [dash, orders] = await Promise.all([
+      api.get('/admin/dashboard'),
+      api.get('/admin/orders?limit=8&page=1'),
+    ]);
+    setStats(dash.data);
+    setRecent(orders.data.orders);
+    const days = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      days.push({ date: d.toISOString().slice(0, 10), label: fmtDay(d), revenue: 0 });
+    }
+    const all = await api.get('/admin/orders?limit=200&page=1');
+    all.data.orders.forEach((o) => {
+      const d = new Date(o.deliveredAt || o.createdAt).toISOString().slice(0, 10);
+      const row = days.find((x) => x.date === d);
+      if (row && ['delivered', 'collected'].includes(o.status)) row.revenue += o.total || 0;
+    });
+    setChart(days);
   }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   if (!stats) return <Loader />;
   const cs = stats.channelStats || {};

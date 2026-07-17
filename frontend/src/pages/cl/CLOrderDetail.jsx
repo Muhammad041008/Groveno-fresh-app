@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Phone, MapPin, Package } from 'lucide-react';
@@ -19,13 +19,13 @@ export default function CLOrderDetail() {
   const [order, setOrder] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
-    // We fetch via list and filter (no single-order endpoint for CL) — cheap and works
+  const load = useCallback(async () => {
     const { data } = await clApi.get(`/cl/orders?limit=200`);
     const found = data.orders.find((o) => o.id === id);
     setOrder(found);
-  };
-  useEffect(() => { load();  }, [id]);
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
 
   const markDelivered = async () => {
     setSaving(true);
@@ -82,7 +82,7 @@ export default function CLOrderDetail() {
         <h4 className="text-xs font-semibold uppercase text-slate-500 mb-3 flex items-center gap-1.5"><Package size={12} /> Items ({order.items?.length || 0})</h4>
         <div className="space-y-2">
           {(order.items || []).map((it, i) => (
-            <div key={i} className="flex items-center justify-between text-sm">
+            <div key={it._id || `${it.productId}-${it.variantId || it.variantSize}-${i}`} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2.5 min-w-0">
                 {it.image ? <img src={it.image} alt="" className="h-9 w-9 rounded object-cover" /> : <div className="h-9 w-9 rounded bg-brand-50 grid place-items-center text-sm">🥗</div>}
                 <div className="min-w-0">

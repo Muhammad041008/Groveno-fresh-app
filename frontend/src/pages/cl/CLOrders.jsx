@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Search, MapPin, ShoppingBag, Plus } from 'lucide-react';
@@ -18,13 +18,14 @@ export default function CLOrders() {
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data } = await clApi.get('/cl/orders?limit=100');
     setOrders(data.orders);
     setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const markDelivered = async (o) => {
     try {
@@ -46,6 +47,57 @@ export default function CLOrders() {
       return true;
     });
   }, [orders, tab, search]);
+
+  const renderList = () => {
+    if (loading) return <div className="text-sm text-slate-400 text-center py-10">Loading…</div>;
+    if (filtered.length === 0) return <div className="card p-8 text-center text-slate-400 text-sm">No orders</div>;
+    return (
+      <div className="space-y-2.5">
+        {filtered.map((o) => {
+          const pending = !['delivered', 'collected', 'cancelled', 'rejected'].includes(o.status);
+          return (
+            <div key={o.id} className="card p-3.5" data-testid={`cl-order-card-${o.id}`}>
+              <div className="flex items-start justify-between mb-2">
+                <div className="min-w-0">
+                  <Link to={`/cl/orders/${o.id}`} className="text-sm font-semibold text-brand-700">{o.orderNumber}</Link>
+                  <div className="text-sm text-slate-800 font-medium truncate">{o.customerName || o.userName || 'Customer'}</div>
+                  <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                    <span className="flex items-center gap-1"><ShoppingBag size={11} /> {o.items?.length || 0} items</span>
+                    <span>·</span>
+                    <span>{fmtDate(o.createdAt)}</span>
+                  </div>
+                </div>
+                <StatusBadge status={o.status} />
+              </div>
+
+              {o.address?.line1 && (
+                <div className="text-[11px] text-slate-500 flex items-start gap-1 mb-2 leading-relaxed">
+                  <MapPin size={11} className="mt-0.5 text-slate-400 shrink-0" />
+                  <span className="truncate">{o.address.line1}{o.address.landmark ? `, ${o.address.landmark}` : ''}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+                <div>
+                  <span className="text-sm font-semibold">{inr(o.total)}</span>
+                  {renderCommission(o.clCommission)}
+                </div>
+                {pending && (
+                  <button
+                    onClick={() => markDelivered(o)}
+                    className="btn-primary !py-1.5 !px-3 !text-xs"
+                    data-testid={`cl-deliver-${o.id}`}
+                  >
+                    Mark Delivered
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="p-4 pb-6" data-testid="cl-page-orders">
@@ -78,56 +130,11 @@ export default function CLOrders() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="text-sm text-slate-400 text-center py-10">Loading…</div>
-      ) : filtered.length === 0 ? (
-        <div className="card p-8 text-center text-slate-400 text-sm">No orders</div>
-      ) : (
-        <div className="space-y-2.5">
-          {filtered.map((o) => {
-            const pending = !['delivered', 'collected', 'cancelled', 'rejected'].includes(o.status);
-            return (
-              <div key={o.id} className="card p-3.5" data-testid={`cl-order-card-${o.id}`}>
-                <div className="flex items-start justify-between mb-2">
-                  <div className="min-w-0">
-                    <Link to={`/cl/orders/${o.id}`} className="text-sm font-semibold text-brand-700">{o.orderNumber}</Link>
-                    <div className="text-sm text-slate-800 font-medium truncate">{o.customerName || o.userName || 'Customer'}</div>
-                    <div className="text-[11px] text-slate-500 flex items-center gap-2">
-                      <span className="flex items-center gap-1"><ShoppingBag size={11} /> {o.items?.length || 0} items</span>
-                      <span>·</span>
-                      <span>{fmtDate(o.createdAt)}</span>
-                    </div>
-                  </div>
-                  <StatusBadge status={o.status} />
-                </div>
-
-                {o.address?.line1 && (
-                  <div className="text-[11px] text-slate-500 flex items-start gap-1 mb-2 leading-relaxed">
-                    <MapPin size={11} className="mt-0.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{o.address.line1}{o.address.landmark ? `, ${o.address.landmark}` : ''}</span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between border-t border-slate-100 pt-2">
-                  <div>
-                    <span className="text-sm font-semibold">{inr(o.total)}</span>
-                    <span className="ml-2 text-[11px] text-green-700 font-medium">+{inr(o.clCommission)} commission</span>
-                  </div>
-                  {pending && (
-                    <button
-                      onClick={() => markDelivered(o)}
-                      className="btn-primary !py-1.5 !px-3 !text-xs"
-                      data-testid={`cl-deliver-${o.id}`}
-                    >
-                      Mark Delivered
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {renderList()}
     </div>
   );
+}
+
+function renderCommission(commission) {
+  return <span className="ml-2 text-[11px] text-green-700 font-medium">+{inr(commission)} commission</span>;
 }

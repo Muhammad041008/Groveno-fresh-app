@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Wallet, Coins, Phone, User, MapPin } from 'lucide-react';
@@ -15,11 +15,12 @@ export default function UserDetail() {
   const [desc, setDesc] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const { data } = await api.get(`/admin/users/${id}`);
     setData(data);
-  };
-  useEffect(() => { load();  }, [id]);
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
 
   const credit = async (e) => {
     e.preventDefault();
@@ -98,7 +99,7 @@ export default function UserDetail() {
           <div className="card p-6">
             <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2"><MapPin size={16} /> Addresses</h4>
             {user.addresses?.length ? user.addresses.map((a, i) => (
-              <div key={i} className="text-sm border-b border-slate-100 py-2 last:border-0">
+              <div key={a._id || `${a.pincode || 'addr'}-${i}`} className="text-sm border-b border-slate-100 py-2 last:border-0">
                 <div className="font-medium">{a.label}</div>
                 <div className="text-slate-500">{a.line1}, {a.city} - {a.pincode}</div>
               </div>

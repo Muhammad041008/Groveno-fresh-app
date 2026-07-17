@@ -105,7 +105,7 @@ export default function Reports() {
             <ResponsiveContainer>
               <PieChart>
                 <Pie data={qrPie} innerRadius={40} outerRadius={80} paddingAngle={2} dataKey="value" nameKey="name">
-                  {qrPie.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {qrPie.map((slice) => <Cell key={slice.name} fill={COLORS[qrPie.indexOf(slice) % COLORS.length]} />)}
                 </Pie>
                 <Tooltip />
                 <Legend />
@@ -122,8 +122,8 @@ export default function Reports() {
             <thead><tr><th className="table-th">Product</th><th className="table-th">Qty</th><th className="table-th text-right">Revenue</th></tr></thead>
             <tbody>
               {topProducts.length === 0 && <tr><td colSpan={3} className="table-td text-slate-400 text-center py-6">No data</td></tr>}
-              {topProducts.map((p, i) => (
-                <tr key={i} className="hover:bg-slate-50">
+              {topProducts.map((p) => (
+                <tr key={`${p.name}-${p.revenue}`} className="hover:bg-slate-50">
                   <td className="table-td font-medium">{p.name}</td>
                   <td className="table-td">{p.qty}</td>
                   <td className="table-td text-right">{inr(p.revenue)}</td>

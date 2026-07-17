@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Download, Share2, Copy, QrCode as QrIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clApi from '../../lib/clApi';
@@ -10,14 +10,14 @@ export default function CLQrCode() {
   const [ordersFromQR, setOrdersFromQR] = useState(0);
   const qrRef = useRef(null);
 
-  useEffect(() => {
-    // Fetch fresh dashboard to get up-to-date qrScans and orders count
-    clApi.get('/cl/dashboard').then((r) => {
-      const q = r.data.stats?.qrScans || {};
-      setScans(q);
-      setOrdersFromQR(r.data.stats?.totalOrders || 0);
-    });
+  const loadStats = useCallback(async () => {
+    const r = await clApi.get('/cl/dashboard');
+    const q = r.data.stats?.qrScans || {};
+    setScans(q);
+    setOrdersFromQR(r.data.stats?.totalOrders || 0);
   }, []);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
 
   const shareLink = `https://groveno.app/qr?cl=${cl?.clCode || ''}`;
   const totalScans = (scans.poster || 0) + (scans.whatsapp || 0) + (scans.standee || 0) + (scans.other || 0);

@@ -25,6 +25,48 @@ export default function Orders() {
     }).finally(() => setLoading(false));
   }, [channel, status, page]);
 
+  const renderContent = () => {
+    if (loading) return <Loader />;
+    if (orders.length === 0) return <EmptyState title="No orders found" />;
+    return (
+      <div className="card overflow-x-auto">
+        <table className="min-w-full">
+          <thead>
+            <tr>
+              <th className="table-th">Order #</th>
+              <th className="table-th">Customer</th>
+              <th className="table-th">Channel</th>
+              <th className="table-th">Total</th>
+              <th className="table-th">Status</th>
+              <th className="table-th">Placed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.id} className="hover:bg-slate-50" data-testid={`order-row-${o.id}`}>
+                <td className="table-td font-medium">
+                  <Link to={`/orders/${o.id}`} className="text-brand-700 hover:underline">{o.orderNumber}</Link>
+                </td>
+                <td className="table-td">{o.userName || o.customerName || '—'}<div className="text-xs text-slate-400">{o.userPhone}</div></td>
+                <td className="table-td">{CHANNEL_LABEL[o.channel]}</td>
+                <td className="table-td">{inr(o.total)}</td>
+                <td className="table-td"><StatusBadge status={o.status} /></td>
+                <td className="table-td text-slate-500">{fmtDate(o.createdAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="p-3 flex items-center justify-between text-sm">
+          <div className="text-slate-500">Page {page}</div>
+          <div className="flex gap-2">
+            <button className="btn-outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Prev</button>
+            <button className="btn-outline" disabled={orders.length < 25} onClick={() => setPage((p) => p + 1)}>Next</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-8 max-w-[1400px] mx-auto" data-testid="page-orders">
       <PageHeader title="Orders" subtitle={`${total} order${total === 1 ? '' : 's'}`} />
@@ -48,45 +90,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {loading ? <Loader /> : orders.length === 0 ? (
-        <EmptyState title="No orders found" />
-      ) : (
-        <div className="card overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr>
-                <th className="table-th">Order #</th>
-                <th className="table-th">Customer</th>
-                <th className="table-th">Channel</th>
-                <th className="table-th">Total</th>
-                <th className="table-th">Status</th>
-                <th className="table-th">Placed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((o) => (
-                <tr key={o.id} className="hover:bg-slate-50" data-testid={`order-row-${o.id}`}>
-                  <td className="table-td font-medium">
-                    <Link to={`/orders/${o.id}`} className="text-brand-700 hover:underline">{o.orderNumber}</Link>
-                  </td>
-                  <td className="table-td">{o.userName || o.customerName || '—'}<div className="text-xs text-slate-400">{o.userPhone}</div></td>
-                  <td className="table-td">{CHANNEL_LABEL[o.channel]}</td>
-                  <td className="table-td">{inr(o.total)}</td>
-                  <td className="table-td"><StatusBadge status={o.status} /></td>
-                  <td className="table-td text-slate-500">{fmtDate(o.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-3 flex items-center justify-between text-sm">
-            <div className="text-slate-500">Page {page}</div>
-            <div className="flex gap-2">
-              <button className="btn-outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Prev</button>
-              <button className="btn-outline" disabled={orders.length < 25} onClick={() => setPage((p) => p + 1)}>Next</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {renderContent()}
     </div>
   );
 }

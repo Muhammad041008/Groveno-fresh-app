@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Wallet, Clock, Lock } from 'lucide-react';
 import clApi from '../../lib/clApi';
 import { inr, fmtDate } from '../../lib/format.jsx';
@@ -6,9 +6,12 @@ import { inr, fmtDate } from '../../lib/format.jsx';
 export default function CLEarnings() {
   const [data, setData] = useState(null);
 
-  useEffect(() => {
-    clApi.get('/cl/earnings').then((r) => setData(r.data));
+  const load = useCallback(async () => {
+    const { data } = await clApi.get('/cl/earnings');
+    setData(data);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   if (!data) return <div className="p-8 text-sm text-slate-400 text-center">Loading…</div>;
 

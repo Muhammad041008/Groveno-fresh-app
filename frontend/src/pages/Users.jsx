@@ -25,6 +25,41 @@ export default function Users() {
     return () => clearTimeout(t);
   }, [search]);
 
+  const renderTable = () => {
+    if (loading) return <Loader />;
+    if (users.length === 0) return <EmptyState title="No users" />;
+    return (
+      <div className="card overflow-x-auto">
+        <table className="min-w-full">
+          <thead>
+            <tr>
+              <th className="table-th">Name</th>
+              <th className="table-th">Phone</th>
+              <th className="table-th">Wallet</th>
+              <th className="table-th">Coins</th>
+              <th className="table-th">CL Orders</th>
+              <th className="table-th">Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id} className="hover:bg-slate-50" data-testid={`user-row-${u.id}`}>
+                <td className="table-td font-medium">
+                  <Link to={`/users/${u.id}`} className="text-brand-700 hover:underline">{u.name || 'Unnamed'}</Link>
+                </td>
+                <td className="table-td">{u.phone}</td>
+                <td className="table-td">{inr(u.walletBalance || 0)}</td>
+                <td className="table-td">{u.coins || 0}</td>
+                <td className="table-td">{u.clOrderCount || 0}</td>
+                <td className="table-td text-slate-500">{fmtDate(u.createdAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="p-8 max-w-[1400px] mx-auto" data-testid="page-users">
       <PageHeader title="Users" subtitle={`${total} user${total === 1 ? '' : 's'}`} />
@@ -36,38 +71,7 @@ export default function Users() {
         </div>
       </div>
 
-      {loading ? <Loader /> : users.length === 0 ? (
-        <EmptyState title="No users" />
-      ) : (
-        <div className="card overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr>
-                <th className="table-th">Name</th>
-                <th className="table-th">Phone</th>
-                <th className="table-th">Wallet</th>
-                <th className="table-th">Coins</th>
-                <th className="table-th">CL Orders</th>
-                <th className="table-th">Joined</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-slate-50" data-testid={`user-row-${u.id}`}>
-                  <td className="table-td font-medium">
-                    <Link to={`/users/${u.id}`} className="text-brand-700 hover:underline">{u.name || 'Unnamed'}</Link>
-                  </td>
-                  <td className="table-td">{u.phone}</td>
-                  <td className="table-td">{inr(u.walletBalance || 0)}</td>
-                  <td className="table-td">{u.coins || 0}</td>
-                  <td className="table-td">{u.clOrderCount || 0}</td>
-                  <td className="table-td text-slate-500">{fmtDate(u.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {renderTable()}
     </div>
   );
 }

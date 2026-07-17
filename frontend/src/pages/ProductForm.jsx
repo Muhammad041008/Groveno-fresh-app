@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, ArrowLeft } from 'lucide-react';
@@ -6,6 +6,15 @@ import api from '../lib/api';
 import { PageHeader } from '../components/UI.jsx';
 
 const SIZES = ['small', 'medium', 'large'];
+
+function getSubmitLabel(saving, isEdit) {
+  if (saving) return 'Saving…';
+  return isEdit ? 'Update Product' : 'Create Product';
+}
+
+// Stable-key generator for mutable local rows
+let __nutriSeq = 0;
+const nkey = () => `n_${Date.now()}_${++__nutriSeq}`;
 
 export default function ProductForm() {
   const { id } = useParams();
@@ -18,27 +27,26 @@ export default function ProductForm() {
     isExpress: true, isOrganic: false, isActive: true, tags: [],
     emoji: '🥗', badge: '', featured: false,
   });
-  const [nutrition, setNutrition] = useState([{ label: 'Calories', value: '' }]);
+  const [nutrition, setNutrition] = useState([{ _key: nkey(), label: 'Calories', value: '' }]);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const cRes = await api.get('/categories');
-      setCategories(cRes.data.categories);
-      if (isEdit) {
-        const { data } = await api.get(`/products/${id}`);
-        const p = data.product;
-        setForm({
-          name: p.name, slug: p.slug, description: p.description || '',
-          category: p.category?._id || p.category, images: p.images?.length ? p.images : [''],
-          variants: p.variants?.length ? p.variants : form.variants,
-          isExpress: p.isExpress, isOrganic: p.isOrganic, isActive: p.isActive, tags: p.tags || [],
-          emoji: p.emoji || '🥗', badge: p.badge || '', featured: !!p.featured,
-        });
-      }
-    })();
-     
-  }, [id]);
+  const loadInitial = useCallback(async () => {
+    const cRes = await api.get('/categories');
+    setCategories(cRes.data.categories);
+    if (isEdit) {
+      const { data } = await api.get(`/products/${id}`);
+      const p = data.product;
+      setForm((prev) => ({
+        name: p.name, slug: p.slug, description: p.description || '',
+        category: p.category?._id || p.category, images: p.images?.length ? p.images : [''],
+        variants: p.variants?.length ? p.variants : prev.variants,
+        isExpress: p.isExpress, isOrganic: p.isOrganic, isActive: p.isActive, tags: p.tags || [],
+        emoji: p.emoji || '🥗', badge: p.badge || '', featured: !!p.featured,
+      }));
+    }
+  }, [id, isEdit]);
+
+  useEffect(() => { loadInitial(); }, [loadInitial]);
 
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setVariant = (idx, k, v) => setForm((f) => ({
@@ -128,7 +136,7 @@ export default function ProductForm() {
           <h3 className="font-semibold text-slate-900 mb-4">Variants</h3>
           <div className="space-y-3">
             {form.variants.map((v, i) => (
-              <div key={i} className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end p-3 rounded-lg bg-slate-50">
+              <div key={v._id || v.size || `variant-${i}`} className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end p-3 rounded-lg bg-slate-50">
                 <div>
                   <label className="label block capitalize">{v.size}</label>
                   <input className="input" placeholder="Label (e.g. 500g)" value={v.label}
@@ -163,7 +171,7 @@ export default function ProductForm() {
           <h3 className="font-semibold text-slate-900 mb-4">Nutrition (per serving)</h3>
           <div className="space-y-2">
             {nutrition.map((n, i) => (
-              <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <div key={n._key} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                 <input className="input" placeholder="Label"
                   value={n.label} onChange={(e) => setNutrition(nutrition.map((x, k) => k === i ? { ...x, label: e.target.value } : x))} />
                 <input className="input" placeholder="Value"
@@ -172,7 +180,7 @@ export default function ProductForm() {
                   onClick={() => setNutrition(nutrition.filter((_, k) => k !== i))}><Trash2 size={15} /></button>
               </div>
             ))}
-            <button type="button" className="btn-outline text-xs" onClick={() => setNutrition([...nutrition, { label: '', value: '' }])}>
+            <button type="button" className="btn-outline text-xs" onClick={() => setNutrition([...nutrition, { _key: nkey(), label: '', value: '' }])}>
               <Plus size={14} /> Add row
             </button>
           </div>
@@ -191,7 +199,7 @@ export default function ProductForm() {
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-outline" onClick={() => navigate('/products')}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={saving} data-testid="pf-submit">
-            {saving ? 'Saving…' : (isEdit ? 'Update Product' : 'Create Product')}
+            {getSubmitLabel(saving, isEdit)}
           </button>
         </div>
       </form>

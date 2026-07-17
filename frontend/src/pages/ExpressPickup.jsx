@@ -1,9 +1,17 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Zap, MapPin, AlertTriangle, CheckCircle2, Timer, User, Phone } from 'lucide-react';
 import api, { API_ROOT } from '../lib/api';
 import { PageHeader, Loader, StatusBadge, EmptyState } from '../components/UI.jsx';
 import { inr, fmtDate } from '../lib/format.jsx';
+
+const ACTIVE_STATUSES = ['confirmed', 'customer_on_way', 'arrived', 'ready_for_pickup'];
+
+function getCardTone(arrived, approaching) {
+  if (arrived) return 'border-red-400 bg-red-50';
+  if (approaching) return 'border-yellow-300 bg-yellow-50';
+  return 'border-slate-100 bg-white';
+}
 
 export default function ExpressPickup() {
   const [orders, setOrders] = useState([]);
@@ -11,12 +19,12 @@ export default function ExpressPickup() {
   const [connected, setConnected] = useState(false);
   const esRef = useRef(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data } = await api.get('/admin/express-pickup/active');
     setOrders(data.orders || []);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     load();
@@ -29,8 +37,8 @@ export default function ExpressPickup() {
     es.onerror = () => setConnected(false);
 
     es.addEventListener('snapshot', (e) => {
-      const { orders } = JSON.parse(e.data);
-      setOrders(orders);
+      const payload = JSON.parse(e.data);
+      setOrders(payload.orders);
     });
     es.addEventListener('location', (e) => {
       const p = JSON.parse(e.data);
@@ -44,8 +52,7 @@ export default function ExpressPickup() {
         setOrders((os) => {
           const exists = os.find((o) => o.id === p.orderId);
           if (exists) return os.map((o) => o.id === p.orderId ? { ...o, ...p.order } : o);
-          // if new active order push it, otherwise ignore
-          if (['confirmed', 'customer_on_way', 'arrived', 'ready_for_pickup'].includes(p.status)) {
+          if (ACTIVE_STATUSES.includes(p.status)) {
             return [p.order, ...os];
           }
           return os.filter((o) => o.id !== p.orderId);
@@ -65,7 +72,7 @@ export default function ExpressPickup() {
     });
 
     return () => es.close();
-  }, []);
+  }, [load]);
 
   const markReady = async (o) => {
     try {
@@ -84,26 +91,44 @@ export default function ExpressPickup() {
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
+  const renderList = () => {
+    if (loading) return <Loader />;
+    if (orders.length === 0) {
+      return <EmptyState title="No active pickup orders" subtitle="New orders will appear here in real-time." />;
+    }
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {orders.map((o) => <PickupCard key={o.id} order={o} onReady={markReady} onCollected={markCollected} />)}
+      </div>
+    );
+  };
+
+  const renderConnectionBadge = () => {
+    if (connected) {
+      return (
+        <div className="badge bg-green-50 text-green-700">
+          <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+          Live
+        </div>
+      );
+    }
+    return (
+      <div className="badge bg-slate-100 text-slate-500">
+        <span className="h-2 w-2 rounded-full bg-slate-400"></span>
+        Connecting…
+      </div>
+    );
+  };
+
   return (
     <div className="p-8 max-w-[1400px] mx-auto" data-testid="page-express-pickup">
       <PageHeader
         title="Express Pickup — Live"
         subtitle="Real-time customer location and pickup activity"
-        right={
-          <div className={`badge ${connected ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-            <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}></span>
-            {connected ? 'Live' : 'Connecting…'}
-          </div>
-        }
+        right={renderConnectionBadge()}
       />
 
-      {loading ? <Loader /> : orders.length === 0 ? (
-        <EmptyState title="No active pickup orders" subtitle="New orders will appear here in real-time." />
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {orders.map((o) => <PickupCard key={o.id} order={o} onReady={markReady} onCollected={markCollected} />)}
-        </div>
-      )}
+      {renderList()}
     </div>
   );
 }
@@ -113,11 +138,10 @@ function PickupCard({ order, onReady, onCollected }) {
   const dist = lastPing?.distanceToHub ?? null;
   const approaching = dist != null && dist <= 2 && dist > 0.3 && order.status === 'customer_on_way';
   const arrived = order.status === 'arrived';
-
-  const bar = arrived ? 'border-red-400 bg-red-50' : approaching ? 'border-yellow-300 bg-yellow-50' : 'border-slate-100 bg-white';
+  const cardTone = getCardTone(arrived, approaching);
 
   return (
-    <div className={`card border-2 ${bar} p-5 transition`} data-testid={`pickup-card-${order.id}`}>
+    <div className={`card border-2 ${cardTone} p-5 transition`} data-testid={`pickup-card-${order.id}`}>
       {arrived && (
         <div className="mb-3 p-3 rounded-lg bg-red-100 border border-red-200 flex items-center gap-2 animate-pulse">
           <AlertTriangle size={18} className="text-red-600" />

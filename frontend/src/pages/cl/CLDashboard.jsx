@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CheckCircle2, Clock, ShoppingBag, IndianRupee, TrendingUp } from 'lucide-react';
@@ -9,11 +9,12 @@ import { StatusBadge } from '../../components/UI.jsx';
 export default function CLDashboard() {
   const [data, setData] = useState(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const { data } = await clApi.get('/cl/dashboard');
     setData(data);
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const markDelivered = async (o) => {
     try {

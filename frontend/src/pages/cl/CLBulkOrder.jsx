@@ -1,14 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, ArrowLeft, Users2 } from 'lucide-react';
 import clApi from '../../lib/clApi';
 import { inr } from '../../lib/format.jsx';
 
+// Stable key generator (module-local, avoids re-render collisions)
+let __seq = 0;
+const genKey = (prefix) => `${prefix}_${Date.now()}_${++__seq}`;
+
+const emptyItem = () => ({ _key: genKey('it'), productId: '', variantSize: 'medium', quantity: 1 });
 const emptyCustomer = () => ({
+  _key: genKey('cu'),
   customerName: '',
   address: { line1: '', city: '', pincode: '', landmark: '' },
-  items: [{ productId: '', variantSize: 'medium', quantity: 1 }],
+  items: [emptyItem()],
 });
 
 export default function CLBulkOrder() {
@@ -17,14 +23,17 @@ export default function CLBulkOrder() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    clApi.get('/products?limit=100').then((r) => setProducts(r.data.products));
+  const loadProducts = useCallback(async () => {
+    const r = await clApi.get('/products?limit=100');
+    setProducts(r.data.products);
   }, []);
+
+  useEffect(() => { loadProducts(); }, [loadProducts]);
 
   const setC = (idx, patch) => setCustomers((cs) => cs.map((c, i) => i === idx ? { ...c, ...patch } : c));
   const setAddr = (idx, patch) => setC(idx, { address: { ...customers[idx].address, ...patch } });
   const setItem = (ci, ii, patch) => setC(ci, { items: customers[ci].items.map((it, i) => i === ii ? { ...it, ...patch } : it) });
-  const addItem = (ci) => setC(ci, { items: [...customers[ci].items, { productId: '', variantSize: 'medium', quantity: 1 }] });
+  const addItem = (ci) => setC(ci, { items: [...customers[ci].items, emptyItem()] });
   const rmItem = (ci, ii) => setC(ci, { items: customers[ci].items.filter((_, i) => i !== ii) });
 
   const submit = async (e) => {
@@ -67,7 +76,7 @@ export default function CLBulkOrder() {
 
       <form onSubmit={submit} className="space-y-4">
         {customers.map((c, ci) => (
-          <div key={ci} className="card p-4" data-testid={`cl-bulk-customer-${ci}`}>
+          <div key={c._key} className="card p-4" data-testid={`cl-bulk-customer-${ci}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                 <div className="h-6 w-6 rounded-full bg-brand-100 text-brand-700 grid place-items-center text-xs font-bold">{ci + 1}</div>
@@ -105,7 +114,7 @@ export default function CLBulkOrder() {
                 </div>
                 <div className="space-y-2">
                   {c.items.map((it, ii) => (
-                    <div key={ii} className="grid grid-cols-[1fr_80px_60px_auto] gap-1.5" data-testid={`cl-bulk-item-${ci}-${ii}`}>
+                    <div key={it._key} className="grid grid-cols-[1fr_80px_60px_auto] gap-1.5" data-testid={`cl-bulk-item-${ci}-${ii}`}>
                       <select required className="input !py-1.5 text-sm"
                         value={it.productId} onChange={(e) => setItem(ci, ii, { productId: e.target.value })}>
                         <option value="">Select product…</option>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeft, User, MapPin, Package, BadgeCheck, Coins } from 'lucide-react';
@@ -15,14 +15,13 @@ export default function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
-    // Admin endpoint doesn't have get-by-id, use orders list filter by orderNumber
-    // Use admin/orders?limit=200 and find, or fetch via ownership... We'll fetch single via admin/orders and filter
+  const load = useCallback(async () => {
     const { data } = await api.get(`/admin/orders?limit=200`);
     const o = data.orders.find((x) => x.id === id);
     setOrder(o);
-  };
-  useEffect(() => { load();  }, [id]);
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
 
   const updateStatus = async (status) => {
     setSaving(true);
@@ -66,7 +65,7 @@ export default function OrderDetail() {
               <h4 className="font-medium text-slate-800 mb-3 flex items-center gap-2"><Package size={16} /> Items</h4>
               <div className="space-y-2">
                 {order.items.map((it, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
+                  <div key={it._id || `${it.productId}-${it.variantId || it.variantSize}-${i}`} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-3">
                       {it.image ? <img src={it.image} alt="" className="h-9 w-9 rounded object-cover" /> : <div className="h-9 w-9 rounded bg-brand-50 grid place-items-center">🥗</div>}
                       <div>

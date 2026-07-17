@@ -93,7 +93,7 @@ export default function Wallet() {
               <h4 className="font-semibold mb-3">Recent Transactions (this session)</h4>
               <div className="space-y-2">
                 {txns.map((t, i) => (
-                  <div key={i} className="flex items-center justify-between border-b border-slate-100 py-2 last:border-0">
+                  <div key={t._id || t.id || `${t.createdAt || 'txn'}-${i}`} className="flex items-center justify-between border-b border-slate-100 py-2 last:border-0">
                     <div className="flex items-center gap-3">
                       <div className={`h-9 w-9 rounded-lg grid place-items-center ${t.type === 'credit' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
                         {t.type === 'credit' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}

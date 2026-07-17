@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 4 regression pass on Groveno Fresh code-quality refactor (stable React keys, useCallback for useEffect deps, extracted nested-ternary helpers). Backend smoke + full regression: 103/103 pytest passing (same as iter3, no server code changed). Frontend regression on both admin (1920x900) and CL (480x900) viewports across every touched page. CRITICAL FINDING: zero new React runtime warnings — no 'Each child in a list should have a unique key' warnings, no 'React Hook useEffect has a missing dependency' warnings, and zero console errors on: Login, Dashboard, Products (search + Add), ProductForm (variants small/medium/large + nutrition add), Categories, Orders (25 rows + filters), OrderDetail, Users (37 users + detail), CLs, Wallet, Reports (20 SVGs incl. Recharts BarChart/PieChart + Export CSV button), Express Pickup ('Live' badge visible with SSE connected, 5+ pickup cards render with getCardTone borders). CL panel: Login, Dashboard (4 stat cards), Orders (3 tabs + search + bulk btn), Bulk Order (customer-0 + add-customer -> customer-1 both with stable _key), Order Detail, Earnings (balance + 3 mini stats), QR (image + code text), Profile (code + bank details). Bottom-nav walk across all 5 tabs works. No key duplication, no state bleed between rows, no focus loss when adding rows. All existing functionality preserved.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global (react-router)", "issues": ["Non-blocking carry-over: react-router v7_startTransition and v7_relativeSplatPath future flag warnings still present from previous iterations. Not introduced by this iteration. Ignored by test filter as documented in review request."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_cl_panel.py",
+    "/app/backend/tests/test_referral_and_stream.py",
+    "/app/test_reports/pytest/iter4_all.xml"
+  ],
+  "action_items": [
+    "None - refactor is clean. No regressions. Zero new React warnings introduced."
+  ],
+  "critical_code_review_comments": [
+    "Refactor scope respected user constraints: localStorage token keys ('groveno_admin_token', 'groveno_cl_token') untouched; UI/styling unchanged; only code quality improvements made.",
+    "Stable key strategy is consistent across files: prefers real IDs (p.id, _id) then falls back to composite (productId+variantSize+i, name+revenue, pincode+i). Fallback with array index as final tiebreaker is acceptable since these lists are not reorderable at runtime.",
+    "useCallback wrapping of load functions and including them in useEffect deps is the correct fix. Verified in Dashboard, Products, ProductForm, OrderDetail, UserDetail, ExpressPickup, CLs, CLDashboard, CLOrders, CLOrderDetail, CLEarnings, CLBulkOrder, CLQrCode.",
+    "Extracted helpers (renderConnectionBadge, getCardTone, renderList, renderContent, renderTable, renderBody, styleFor, getSubmitLabel, renderCommission) replace nested ternaries and are pure — good separation.",
+    "Carry-over from iter3 (still valid but out-of-scope for this iter): CLOrderDetail.jsx fetches all orders via GET /cl/orders?limit=200 and finds client-side; consider adding GET /api/cl/orders/:id. CLQrCode 'ordersFromQR' still uses stats.totalOrders (label misleading). No action required this iteration."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (103/103)", "frontend": "100% (all admin pages + all CL pages loaded and interactive with zero new console warnings/errors)"},
+  "test_credentials": "Admin: admin@groveno.com / Admin@123. CL: cl@groveno.com / CL@123 (CL12345). Customer: any phone + OTP 123456.",
+  "seed_data_creation": "None - read-only regression pass; no seed data or state changes required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 4 was a pure code-quality refactor (stable keys, useCallback deps, extracted helpers). Zero regressions observed. All 103 backend tests still pass. Filter to apply in browser console tests: ignore react-router 'v7_startTransition' and 'v7_relativeSplatPath' future-flag warnings (pre-existing carry-over). Note: SSE-heavy pages like /express-pickup keep the network open — use wait_until='domcontentloaded' (not 'networkidle') when navigating to them in Playwright. Also note that CL panel testids and tokens are stable (see iter3 for full inventory).",
+  "rca_of_the_issue": "N/A - refactor complete without regressions."
+}
