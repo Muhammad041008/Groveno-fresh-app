@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Groveno Fresh",
+    "slug": "groveno-fresh",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D3D2A"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.grovenoFresh",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Groveno Fresh uses your location for Express Pickup tracking.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Groveno Fresh uses your location for Express Pickup tracking."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#0D3D2A"
+      },
+      "package": "com.grovenoFresh",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/logo.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Groveno Fresh to use your location for Express Pickup tracking."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#22C55E"
+        }
+      ],
+      "react-native-maps"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "groveno-fresh"
+      }
+    }
+  }
+}

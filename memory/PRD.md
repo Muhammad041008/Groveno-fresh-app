@@ -64,12 +64,51 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 ## Backlog / Next Actions
 - Real Firebase Phone Auth + real Razorpay HMAC (interfaces compatible, code present).
 - Push notifications on order lifecycle (out_for_delivery, arrived, delivered).
-- Customer-facing mobile app (React Native or PWA).
 - CL commission auto-payout via Razorpay Payouts (currently manual "Withdraw — coming soon").
 - Product suggestions in Reports: consider Monday-based week aggregation for India (currently Sunday-based).
 - Optional: server-side email/IFSC format validators on PUT /api/cl/profile.
+- EAS Build setup for React Native production APK/IPA.
+
+## Customer Mobile App (Expo SDK 54 + TypeScript)
+Location: `/app/mobile/`
+### Architecture
+- Expo SDK 54 + TypeScript + StyleSheet only (no NativeWind)
+- React Navigation: AuthStack + 4 bottom tabs (HomeTab, OrderAgainTab, CategoriesTab, ProfileTab) + hidden CartTab
+- AuthContext (isLoggedIn state) + CartContext (items, addItem, removeItem, clearCart)
+- Backend URL: `EXPO_PUBLIC_API_URL` in `/app/mobile/.env`
+
+### Screens (22 built)
+| Auth | Home/Browse | Cart/Checkout |
+|------|-------------|---------------|
+| Splash | Home | Cart |
+| Onboarding | Categories | ChannelSelection |
+| Login | ProductListing | HomeDeliveryCheckout |
+| OTP | ProductDetail | ExpressPickup |
+|  | Search | ExpressPickupTracking |
+|  |  | Payment |
+|  |  | OrderSuccess |
+
+| Orders | Wallet/Refer | Profile |
+|--------|--------------|---------|
+| MyOrders | WalletScreen | Account |
+| RatingPopup | ReferEarn |  |
+|  | MyReferrals |  |
+
+### Key Configs
+- App name: "Groveno Fresh"
+- android.package: "com.grovenoFresh"
+- ios.bundleIdentifier: "com.grovenoFresh"
+- OTP: Any 4 digits (demo) — maps to backend mock OTP 123456
+- Maps: react-native-maps (requires dev build, fallback UI in Expo Go)
+
+### To run
+```bash
+cd /app/mobile && npx expo start
+```
+Scan QR in Expo Go app (maps need dev build: `npx expo run:android`)
 
 ## Public URLs
 - App: https://delivery-coins.preview.emergentagent.com
 - Admin: /login → /dashboard
 - CL Panel: /cl/login → /cl/dashboard
+
