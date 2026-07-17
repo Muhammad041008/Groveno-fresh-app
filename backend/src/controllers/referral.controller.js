@@ -76,15 +76,24 @@ exports.me = asyncHandler(async (req, res) => {
 // Called from order controllers after an order is created to credit referrer if this is the user's first order
 async function maybeCreditReferrer(user, order) {
   if (!user) return;
-  if (user.firstOrderPlaced) return;
+  // Atomic compare-and-set: only proceed if we're the one flipping firstOrderPlaced=true
+  const updated = await User.updateOne(
+    { _id: user._id, firstOrderPlaced: { $ne: true } },
+    { $set: { firstOrderPlaced: true } }
+  );
+  if (updated.modifiedCount !== 1) return;
   user.firstOrderPlaced = true;
-  await user.save();
 
   if (!user.referredBy) return;
   const referrer = await User.findById(user.referredBy);
   if (!referrer) return;
 
-  const expiresAt = new Date(Date.now() + REFERRAL_COIN_EXPIRY_DAYS * 24 * 3600 * 1000);
+  const now = Date.now();
+  const newExpiry = new Date(now + REFERRAL_COIN_EXPIRY_DAYS * 24 * 3600 * 1000);
+  // Keep the later of the two expiries so we never shorten an existing longer lock
+  const existingExpiry = referrer.coinsExpiresAt ? new Date(referrer.coinsExpiresAt) : null;
+  const expiresAt = existingExpiry && existingExpiry > newExpiry ? existingExpiry : newExpiry;
+
   referrer.coins = (referrer.coins || 0) + REFERRAL_COINS;
   referrer.coinsExpiresAt = expiresAt;
   referrer.referralRewardsGiven = (referrer.referralRewardsGiven || 0) + 1;
