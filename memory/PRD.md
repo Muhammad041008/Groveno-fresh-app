@@ -47,7 +47,11 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
-### Iteration 3 (CL Panel)
+### Iteration 4 (Mobile OTP Bug Fix — Feb 2026)
+- Fixed navigation crash in OTPScreen: removed `navigation.reset()` in favour of `login()` from AuthContext (state-driven navigator swap in App.tsx).
+- Removed `"newArchEnabled": false` from `app.json`.
+- All static code + backend auth API tests pass (10/10 checks, 3/3 backend tests).
+- OTP flow confirmed correct: authService.verifyOtp() → AsyncStorage save → login() → App.tsx swaps navigator tree.
 - New CL endpoints: `GET /api/cl/me`, `PUT /api/cl/profile` (with bank details), `POST /api/cl/change-password`, `GET /api/cl/earnings` (today/week/month/allTime).
 - CommunityLeader model: added `bankDetails` subdocument.
 - Mobile-first CL Panel (max-w-[480px], bottom nav) — 8 pages:
@@ -62,12 +66,15 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - **103/103 backend tests + 100% CL Panel UI flows pass**.
 
 ## Backlog / Next Actions
-- Real Firebase Phone Auth + real Razorpay HMAC (interfaces compatible, code present).
-- Push notifications on order lifecycle (out_for_delivery, arrived, delivered).
-- CL commission auto-payout via Razorpay Payouts (currently manual "Withdraw — coming soon").
-- Product suggestions in Reports: consider Monday-based week aggregation for India (currently Sunday-based).
-- Optional: server-side email/IFSC format validators on PUT /api/cl/profile.
-- EAS Build setup for React Native production APK/IPA.
+- Real Firebase Phone Auth + real Razorpay HMAC (interfaces compatible, code present). [P1]
+- Push notifications on order lifecycle (out_for_delivery, arrived, delivered). [P1]
+- CL commission auto-payout via Razorpay Payouts (currently manual "Withdraw — coming soon"). [P2]
+- Product suggestions in Reports: consider Monday-based week aggregation for India (currently Sunday-based). [P3]
+- Optional: server-side email/IFSC format validators on PUT /api/cl/profile. [P3]
+- EAS Build setup for React Native production APK/IPA. [P2]
+- CL Society gamification (badge unlocks for society CLs). [P2]
+- Operations Health Dashboard (conversion velocity / supply chain drift). [P3]
+- Cleanup: Remove unused RootStackParamList type from /app/mobile/src/navigation/types.ts [minor]
 
 ## Customer Mobile App (Expo SDK 54 + TypeScript)
 Location: `/app/mobile/`
