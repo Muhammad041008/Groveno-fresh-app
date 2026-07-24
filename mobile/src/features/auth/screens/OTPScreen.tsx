@@ -17,20 +17,30 @@ import type { RouteProp } from '@react-navigation/native';
 import type { AuthStackParamList } from '../../../navigation/types';
 import { useAuth } from '../../../context/AuthContext';
 import * as authService from '../../../services/authService';
+import {
+  firebaseAuth,
+  getConfirmationResult,
+  clearConfirmationResult,
+  setConfirmationResult,
+  isDemoPhone,
+} from '../../../utils/firebaseStore';
 import { colors, spacing, borderRadius } from '../../../theme';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'OTP'>;
 type Route = RouteProp<AuthStackParamList, 'OTP'>;
 
+const RESEND_SECONDS = 30;
+
 export default function OTPScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { phone } = route.params;
+  const { phone, isMockMode } = route.params;
   const { login } = useAuth();
 
   const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(30);
+  const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
+
   const inputRefs = [
     useRef<TextInput>(null),
     useRef<TextInput>(null),
@@ -38,16 +48,17 @@ export default function OTPScreen() {
     useRef<TextInput>(null),
   ];
 
+  // Auto-focus first input
   useEffect(() => {
     const t = setTimeout(() => inputRefs[0].current?.focus(), 200);
     return () => clearTimeout(t);
   }, []);
 
+  // 30-second countdown timer
   useEffect(() => {
-    if (resendTimer > 0) {
-      const t = setTimeout(() => setResendTimer((v) => v - 1), 1000);
-      return () => clearTimeout(t);
-    }
+    if (resendTimer <= 0) return;
+    const t = setTimeout(() => setResendTimer((v) => v - 1), 1000);
+    return () => clearTimeout(t);
   }, [resendTimer]);
 
   const handleChange = (text: string, index: number) => {
@@ -55,9 +66,7 @@ export default function OTPScreen() {
     const next = [...otp];
     next[index] = digit;
     setOtp(next);
-    if (digit && index < 3) {
-      inputRefs[index + 1].current?.focus();
-    }
+    if (digit && index < 3) inputRefs[index + 1].current?.focus();
   };
 
   const handleKeyPress = (e: { nativeEvent: { key: string } }, index: number) => {
@@ -74,20 +83,49 @@ export default function OTPScreen() {
     if (code.length < 4 || loading) return;
     setLoading(true);
     try {
-      await authService.verifyOtp(phone, code);
-      login(); // Switch to MainNavigator via AuthContext
+      if (isMockMode) {
+        // Demo phone: send code directly to backend
+        await authService.verifyOtpMock(phone, code);
+      } else {
+        // Firebase mode: confirm OTP with Firebase, then exchange ID token for JWT
+        const confirmResult = getConfirmationResult();
+        if (!confirmResult) {
+          Alert.alert('Session expired', 'Please go back and request OTP again.');
+          return;
+        }
+        const credential = await confirmResult.confirm(code);
+        const idToken = await credential.user.getIdToken();
+        await authService.verifyOtpFirebase(idToken);
+        clearConfirmationResult();
+      }
+      login();
     } catch (err: any) {
-      const msg = err?.response?.data?.message ?? 'Verification failed. Please try again.';
+      const firebaseErr = err?.code;
+      const msg =
+        firebaseErr === 'auth/invalid-verification-code'
+          ? 'Incorrect OTP. Please try again.'
+          : firebaseErr === 'auth/code-expired'
+          ? 'OTP has expired. Please request a new one.'
+          : err?.response?.data?.message ?? 'Verification failed. Please try again.';
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (resendTimer > 0) return;
-    setResendTimer(30);
-    authService.sendOtp(phone).catch(() => {});
+    setResendTimer(RESEND_SECONDS);
+    try {
+      if (isMockMode || isDemoPhone(phone)) {
+        await authService.sendOtp(phone).catch(() => {});
+      } else if (firebaseAuth) {
+        const confirmation = await firebaseAuth().signInWithPhoneNumber(phone);
+        setConfirmationResult(confirmation);
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
+    }
   };
 
   const filled = otp.every((d) => d !== '');
@@ -107,7 +145,9 @@ export default function OTPScreen() {
         <Text style={styles.sub}>
           Sent to <Text style={styles.phone}>{phone}</Text>
         </Text>
-        <Text style={styles.demo}>Demo mode: any 4 digits work</Text>
+        {isMockMode && (
+          <Text style={styles.demoNote}>Demo mode — enter OTP: 1234</Text>
+        )}
 
         <View style={styles.otpRow}>
           {otp.map((digit, i) => (
@@ -139,9 +179,15 @@ export default function OTPScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.resendBtn} onPress={handleResend} disabled={resendTimer > 0}>
+        <TouchableOpacity
+          style={styles.resendBtn}
+          onPress={handleResend}
+          disabled={resendTimer > 0}
+        >
           <Text style={[styles.resendText, resendTimer > 0 && styles.resendOff]}>
-            {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : 'Resend OTP'}
+            {resendTimer > 0
+              ? `Resend OTP in ${resendTimer}s`
+              : 'Resend OTP'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -157,8 +203,17 @@ const styles = StyleSheet.create({
   heading: { fontSize: 28, fontWeight: '800', color: colors.textPrimary, marginBottom: 8 },
   sub: { fontSize: 15, color: colors.textSecondary, marginBottom: 4 },
   phone: { fontWeight: '700', color: colors.textPrimary },
-  demo: { fontSize: 12, color: colors.primary, fontWeight: '500', marginBottom: spacing.xl },
-  otpRow: { flexDirection: 'row', gap: 12, marginBottom: spacing.xl },
+  demoNote: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+    marginBottom: spacing.xl,
+    backgroundColor: colors.activeBg,
+    padding: 8,
+    borderRadius: borderRadius.sm,
+    marginTop: 8,
+  },
+  otpRow: { flexDirection: 'row', gap: 12, marginBottom: spacing.xl, marginTop: spacing.md },
   box: {
     flex: 1,
     height: 64,
@@ -180,7 +235,7 @@ const styles = StyleSheet.create({
   },
   btnOff: { opacity: 0.45 },
   btnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  resendBtn: { alignItems: 'center', paddingVertical: 10 },
+  resendBtn: { alignItems: 'center', paddingVertical: 12 },
   resendText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
   resendOff: { color: colors.textLight },
 });

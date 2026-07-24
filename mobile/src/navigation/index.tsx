@@ -27,6 +27,7 @@ import WalletScreen from '../features/cart/screens/WalletScreen';
 import OrderSuccessScreen from '../features/orders/screens/OrderSuccessScreen';
 import MyOrdersScreen from '../features/orders/screens/MyOrdersScreen';
 import RatingPopupScreen from '../features/orders/screens/RatingPopupScreen';
+import TrackOrderScreen from '../features/orders/screens/TrackOrderScreen';
 
 import ReferEarnScreen from '../features/refer/screens/ReferEarnScreen';
 import MyReferralsScreen from '../features/refer/screens/MyReferralsScreen';
@@ -51,7 +52,6 @@ const CartStack = createNativeStackNavigator<CartStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-// 4-dot grid icon for Categories tab
 function GridIcon({ color, size }: { color: string; size: number }) {
   const dot = size / 2.6;
   return (
@@ -90,6 +90,7 @@ function OrderNavigator() {
     <OrderStack.Navigator screenOptions={{ headerShown: false }}>
       <OrderStack.Screen name="MyOrders" component={MyOrdersScreen} />
       <OrderStack.Screen name="RatingPopup" component={RatingPopupScreen} />
+      <OrderStack.Screen name="TrackOrder" component={TrackOrderScreen} />
     </OrderStack.Navigator>
   );
 }
@@ -144,10 +145,7 @@ export function MainNavigator() {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#9CA3AF',
-        tabBarLabelStyle: {
-          fontSize: 10.5,
-          fontWeight: '500',
-        },
+        tabBarLabelStyle: { fontSize: 10.5, fontWeight: '500' },
       }}
     >
       <Tab.Screen
@@ -166,11 +164,7 @@ export function MainNavigator() {
         options={{
           tabBarLabel: 'Order Again',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'refresh-circle' : 'refresh-circle-outline'}
-              size={size}
-              color={color}
-            />
+            <Ionicons name={focused ? 'refresh-circle' : 'refresh-circle-outline'} size={size} color={color} />
           ),
         }}
       />

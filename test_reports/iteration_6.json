@@ -1,0 +1,58 @@
+{
+  "summary": "Iteration 6: Backend API tests for Firebase OTP dual-path + Track Order endpoints. Static code review of all 10 changed/new mobile files. All 14 backend tests passed (14/14).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "static_code_review": {
+    "firebaseAdmin.js": "PASS — lazy init, caches result, returns null when env vars missing. Correctly prevents duplicate app init.",
+    "firebaseStore.ts": "PASS — dynamic require(@react-native-firebase/auth) in try-catch for Expo Go safety. Exports firebaseAuth, isFirebaseAvailable, isDemoPhone, DEMO_PHONE_RAW/E164, confirmation result store.",
+    "LoginScreen.tsx": "PASS — isDemoPhone() check before any Firebase call. Falls back to Alert for Expo Go without Firebase. Demo path calls sendOtp then navigates with isMockMode:true.",
+    "OTPScreen.tsx": "PASS — isMockMode branch: calls verifyOtpMock(phone, code). Firebase branch: confirms with confirmResult.confirm(), gets idToken, calls verifyOtpFirebase(). 30s countdown timer with useEffect. Resend button disabled while timer > 0.",
+    "TrackOrderScreen.tsx": "PASS — 3 phases (idle/tracking+nearby/arrived). Haversine distance calculation present. 200m nearby banner. 50m arrived auto-trigger. stopTracking cleanup on unmount. Pulse animation on arrived.",
+    "MyOrdersScreen.tsx": "PASS — TRACKABLE_STATUSES Set(['confirmed','customer_on_way','ready_for_pickup','arrived']). canTrack = channel==='express_pickup' && TRACKABLE_STATUSES.has(status). Track button navigates to TrackOrder with correct params.",
+    "navigation/index.tsx": "PASS — TrackOrderScreen imported and registered as OrderStack.Screen name='TrackOrder' inside OrderNavigator.",
+    "navigation/types.ts": "PASS — OrderStackParamList has TrackOrder with correct params. AuthStackParamList.OTP has isMockMode: boolean.",
+    "app.json": "PASS — plugins array has '@react-native-firebase/app' and '@react-native-firebase/auth' as first two entries.",
+    "auth.controller.js": "PASS — firebaseToken path returns 503 when Firebase not configured. otp path handles demo phone shortcut (+911234567890 + 1234) and legacy MOCK_OTP. Missing body returns 400."
+  },
+  "backend_test_results": {
+    "total": 14,
+    "passed": 14,
+    "failed": 0,
+    "coverage": [
+      "send-otp demo phone → success + devOtp='1234'",
+      "send-otp legacy phone → success",
+      "send-otp missing phone → 400",
+      "verify-otp demo phone + OTP 1234 → JWT token",
+      "verify-otp legacy +919876543210 + 123456 → JWT token",
+      "verify-otp firebaseToken (unconfigured) → 503",
+      "verify-otp empty body → 400",
+      "verify-otp otp-only no phone → 400",
+      "start-tracking no auth → 401",
+      "location-update no auth → 401",
+      "arrived no auth → 401",
+      "start-tracking with auth + invalid order → route exists (404/400)",
+      "location-update with auth + invalid order → route exists",
+      "arrived with auth + invalid order → route exists"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter6.py",
+    "/app/test_reports/pytest/pytest_results_iter6.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": ["/app/backend/tests/test_iter6.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "N/A - React Native, not browser testable"},
+  "mocked_apis": "Firebase Phone OTP is MOCKED via demo phone 1234567890 / OTP 1234. Real Firebase requires dev build + google-services.json. Razorpay payment MOCKED.",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All Task 1 (Firebase OTP dual-path) and Task 2 (TrackOrder screen) implementations verified. Backend 14/14 passing. Static code review of all 10 files passed. Demo phone +911234567890 / OTP 1234 is primary testable flow. Firebase 503 on unconfigured env is expected correct behavior."
+}

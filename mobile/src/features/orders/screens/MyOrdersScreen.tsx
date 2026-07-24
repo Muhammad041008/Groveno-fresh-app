@@ -24,6 +24,8 @@ const STATUS_COLORS: Record<string, string> = {
   collected: '#22C55E',
   cancelled: '#EF4444',
   ready_for_pickup: '#3B82F6',
+  customer_on_way: '#F59E0B',
+  arrived: '#22C55E',
 };
 
 const CHANNEL_BADGES: Record<string, { label: string; color: string }> = {
@@ -31,6 +33,9 @@ const CHANNEL_BADGES: Record<string, { label: string; color: string }> = {
   express_pickup: { label: '⚡ Express', color: '#1565C0' },
   cl_order: { label: '👥 CL', color: '#6D28D9' },
 };
+
+/** Statuses for which an express pickup order can still be tracked. */
+const TRACKABLE_STATUSES = new Set(['confirmed', 'customer_on_way', 'ready_for_pickup', 'arrived']);
 
 export default function MyOrdersScreen() {
   const navigation = useNavigation<any>();
@@ -69,7 +74,11 @@ export default function MyOrdersScreen() {
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ padding: spacing.md, paddingBottom: 40 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrders(); }} tintColor={colors.primary} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); fetchOrders(); }}
+              tintColor={colors.primary}
+            />
           }
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -81,6 +90,8 @@ export default function MyOrdersScreen() {
           renderItem={({ item }) => {
             const badge = CHANNEL_BADGES[item.channel];
             const statusColor = STATUS_COLORS[item.status] ?? colors.textSecondary;
+            const canTrack =
+              item.channel === 'express_pickup' && TRACKABLE_STATUSES.has(item.status);
 
             return (
               <View style={styles.card}>
@@ -104,7 +115,7 @@ export default function MyOrdersScreen() {
                 <View style={styles.itemsList}>
                   {item.items.slice(0, 2).map((i, idx) => (
                     <Text key={idx} style={styles.itemText}>
-                      • {i.name} × {i.qty}
+                      • {i.name} × {(i as any).quantity ?? i.qty ?? 1}
                     </Text>
                   ))}
                   {item.items.length > 2 && (
@@ -118,14 +129,42 @@ export default function MyOrdersScreen() {
                     <TouchableOpacity style={styles.reorderBtn}>
                       <Text style={styles.reorderText}>Reorder</Text>
                     </TouchableOpacity>
+
+                    {canTrack && (
+                      <TouchableOpacity
+                        style={styles.trackBtn}
+                        onPress={() =>
+                          navigation.navigate('TrackOrder', {
+                            orderId: item._id,
+                            orderNumber: item.orderNumber,
+                            items: item.items.map((i) => ({
+                              name: i.name,
+                              qty: (i as any).quantity ?? i.qty ?? 1,
+                            })),
+                            pickupPointName: (item as any).pickupPointName ?? 'Pickup Hub',
+                            pickupPointAddress: (item as any).pickupPointAddress ?? '',
+                            status: item.status,
+                          })
+                        }
+                      >
+                        <Text style={styles.trackBtnText}>Track</Text>
+                      </TouchableOpacity>
+                    )}
+
                     {item.status === 'delivered' && !item.isRated && (
                       <TouchableOpacity
                         style={styles.rateBtn}
-                        onPress={() => navigation.navigate('RatingPopup', {
-                          orderId: item._id,
-                          orderNumber: item.orderNumber,
-                          items: item.items.map((i) => ({ name: i.name, productId: i.product, emoji: (i as any).emoji })),
-                        })}
+                        onPress={() =>
+                          navigation.navigate('RatingPopup', {
+                            orderId: item._id,
+                            orderNumber: item.orderNumber,
+                            items: item.items.map((i) => ({
+                              name: i.name,
+                              productId: i.product,
+                              emoji: (i as any).emoji,
+                            })),
+                          })
+                        }
                       >
                         <Text style={styles.rateBtnText}>Rate</Text>
                       </TouchableOpacity>
@@ -143,7 +182,13 @@ export default function MyOrdersScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  header: { backgroundColor: '#fff', paddingHorizontal: spacing.md, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  header: {
+    backgroundColor: '#fff',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
   title: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: spacing.xl },
   emptyIcon: { fontSize: 60, marginBottom: 16 },
@@ -161,11 +206,36 @@ const styles = StyleSheet.create({
   itemsList: { marginBottom: 12 },
   itemText: { fontSize: 13, color: colors.textSecondary, marginBottom: 3 },
   itemMore: { fontSize: 12, color: colors.textLight, fontStyle: 'italic' },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 10,
+  },
   total: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
   actions: { flexDirection: 'row', gap: 8 },
-  reorderBtn: { backgroundColor: colors.primary, borderRadius: borderRadius.sm, paddingHorizontal: 14, paddingVertical: 7 },
+  reorderBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
   reorderText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  rateBtn: { borderWidth: 1.5, borderColor: colors.primary, borderRadius: borderRadius.sm, paddingHorizontal: 14, paddingVertical: 7 },
+  trackBtn: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  trackBtnText: { color: '#1565C0', fontSize: 13, fontWeight: '700' },
+  rateBtn: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
   rateBtnText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
 });

@@ -4,7 +4,8 @@ export type AuthStackParamList = {
   Splash: undefined;
   Onboarding: undefined;
   Login: undefined;
-  OTP: { phone: string };
+  /** isMockMode = true → demo phone 1234567890, OTP 1234, no Firebase */
+  OTP: { phone: string; isMockMode: boolean };
 };
 
 export type HomeStackParamList = {
@@ -20,6 +21,14 @@ export type OrderStackParamList = {
     orderId: string;
     orderNumber: string;
     items: Array<{ name: string; productId: string; emoji?: string }>;
+  };
+  TrackOrder: {
+    orderId: string;
+    orderNumber: string;
+    items: Array<{ name: string; qty: number }>;
+    pickupPointName: string;
+    pickupPointAddress?: string;
+    status: string;
   };
 };
 
@@ -72,9 +81,4 @@ export type RootTabParamList = {
   CategoriesTab: NavigatorScreenParams<CategoriesStackParamList>;
   ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
   CartTab: NavigatorScreenParams<CartStackParamList>;
-};
-
-export type RootStackParamList = {
-  Auth: NavigatorScreenParams<AuthStackParamList>;
-  Main: NavigatorScreenParams<RootTabParamList>;
 };

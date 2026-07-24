@@ -18,6 +18,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../../navigation/types';
 import * as authService from '../../../services/authService';
 import { colors, spacing, borderRadius } from '../../../theme';
+import {
+  firebaseAuth,
+  isFirebaseAvailable,
+  isDemoPhone,
+  setConfirmationResult,
+  DEMO_PHONE_E164,
+} from '../../../utils/firebaseStore';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -31,12 +38,29 @@ export default function LoginScreen() {
   const handleGetOtp = async () => {
     if (!isValid || loading) return;
     setLoading(true);
+
     try {
-      await authService.sendOtp(`+91${phone}`);
-      navigation.navigate('OTP', { phone: `+91${phone}` });
-    } catch {
-      // Even if backend fails, navigate for mock testing
-      navigation.navigate('OTP', { phone: `+91${phone}` });
+      if (isDemoPhone(phone)) {
+        // ── Demo / mock mode ─────────────────────────────────────
+        // Skip Firebase — call backend sendOtp for form's sake then navigate
+        try { await authService.sendOtp(DEMO_PHONE_E164); } catch { /* ok */ }
+        navigation.navigate('OTP', { phone: DEMO_PHONE_E164, isMockMode: true });
+      } else if (isFirebaseAvailable) {
+        // ── Firebase mode (dev build) ─────────────────────────────
+        const confirmation = await firebaseAuth().signInWithPhoneNumber(`+91${phone}`);
+        setConfirmationResult(confirmation);
+        navigation.navigate('OTP', { phone: `+91${phone}`, isMockMode: false });
+      } else {
+        // ── Expo Go without Firebase ──────────────────────────────
+        Alert.alert(
+          'Dev Build Required',
+          'Firebase Phone Auth needs a dev build.\n\nFor testing, enter: 1234567890\nDemo OTP: 1234',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (err: any) {
+      const msg = err?.message ?? 'Failed to send OTP. Please try again.';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
@@ -52,7 +76,6 @@ export default function LoginScreen() {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo */}
         <View style={styles.logoArea}>
           <Image
             source={require('../../../../assets/logo.png')}
@@ -63,7 +86,6 @@ export default function LoginScreen() {
           <Text style={styles.tagline}>Freshness You Can Trust</Text>
         </View>
 
-        {/* Card */}
         <View style={styles.card}>
           <Text style={styles.heading}>Enter your phone number</Text>
           <Text style={styles.sub}>We'll send you a verification code</Text>
@@ -86,6 +108,12 @@ export default function LoginScreen() {
             />
           </View>
 
+          {!isFirebaseAvailable && (
+            <Text style={styles.devNote}>
+              Demo mode active — use 1234567890 / OTP: 1234
+            </Text>
+          )}
+
           <TouchableOpacity
             style={[styles.btn, !isValid && styles.btnDisabled]}
             onPress={handleGetOtp}
@@ -100,7 +128,6 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Terms */}
         <Text style={styles.terms}>
           By continuing, you agree to our{' '}
           <Text style={styles.link}>Terms of Service</Text>
@@ -123,12 +150,7 @@ const styles = StyleSheet.create({
   },
   logoArea: { alignItems: 'center', marginBottom: spacing.xxl },
   logo: { width: 90, height: 90, borderRadius: 18, marginBottom: 12 },
-  brand: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.primaryDarker,
-    letterSpacing: -0.3,
-  },
+  brand: { fontSize: 24, fontWeight: '800', color: colors.primaryDarker, letterSpacing: -0.3 },
   tagline: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
   card: {
     width: '100%',
@@ -138,17 +160,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  heading: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 6,
-  },
-  sub: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-  },
+  heading: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
+  sub: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.lg },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,12 +191,14 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: 1,
   },
-  btn: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    paddingVertical: 15,
-    alignItems: 'center',
+  devNote: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
+  btn: { backgroundColor: colors.primary, borderRadius: borderRadius.md, paddingVertical: 15, alignItems: 'center' },
   btnDisabled: { backgroundColor: '#D1FAE5', opacity: 0.7 },
   btnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   terms: {

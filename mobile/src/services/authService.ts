@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from './api';
-import { MOCK_OTP_BACKEND } from '../constants/data';
 
 export interface User {
   _id: string;
@@ -16,15 +15,29 @@ export async function sendOtp(phone: string): Promise<void> {
   await api.post('/api/auth/send-otp', { phone });
 }
 
-export async function verifyOtp(
+/**
+ * Mock / demo path: sends { phone, otp } to the backend.
+ * Used when phone === '1234567890' (demo device) with OTP '1234'.
+ */
+export async function verifyOtpMock(
   phone: string,
-  _otp: string
+  otp: string
 ): Promise<{ token: string; user: User }> {
-  // Backend uses mock OTP 123456; any 4-digit input on client side maps to it
-  const res = await api.post('/api/auth/verify-otp', {
-    phone,
-    otp: MOCK_OTP_BACKEND,
-  });
+  const res = await api.post('/api/auth/verify-otp', { phone, otp });
+  const { token, user } = res.data;
+  await AsyncStorage.setItem('groveno_token', token);
+  await AsyncStorage.setItem('groveno_user', JSON.stringify(user));
+  return { token, user };
+}
+
+/**
+ * Firebase path: sends { firebaseToken } to the backend.
+ * Backend verifies the token with Firebase Admin SDK and issues a JWT.
+ */
+export async function verifyOtpFirebase(
+  firebaseIdToken: string
+): Promise<{ token: string; user: User }> {
+  const res = await api.post('/api/auth/verify-otp', { firebaseToken: firebaseIdToken });
   const { token, user } = res.data;
   await AsyncStorage.setItem('groveno_token', token);
   await AsyncStorage.setItem('groveno_user', JSON.stringify(user));
