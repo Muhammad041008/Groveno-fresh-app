@@ -47,6 +47,29 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
+### Iteration 5 (Firebase OTP + Track Order — Feb 2026)
+**Task 1 — Firebase Phone Auth:**
+- Backend `auth.controller.js` now accepts `{ firebaseToken }` (Firebase path) OR `{ phone, otp }` (mock/legacy path)
+- New `/app/backend/src/utils/firebaseAdmin.js` — lazy Firebase Admin init with env-var guard
+- Demo phone `+911234567890` + OTP `1234` bypasses Firebase for testing (always works)
+- `firebase-admin@^12.4.0` already installed; configure `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` in `.env` to activate
+- Mobile: `@react-native-firebase/app@25.1.0` + `@react-native-firebase/auth@25.1.0` installed
+- `LoginScreen.tsx` — calls `firebaseAuth().signInWithPhoneNumber('+91'+phone)` for real phones; demo path skips Firebase
+- `OTPScreen.tsx` — Firebase confirm + 30s countdown + Resend button; mock path uses `verifyOtpMock()`
+- `/app/mobile/src/utils/firebaseStore.ts` — safe dynamic require for Expo Go compatibility
+- `app.json` — `@react-native-firebase/app` and `@react-native-firebase/auth` added to plugins
+- **Requires dev build** (`npx expo run:android`) + `google-services.json` from Firebase Console for real phone auth
+
+**Task 2 — Track My Order (Express Pickup):**
+- New `TrackOrderScreen.tsx` — 3 phases: idle → tracking → arrived
+  - "I'm on My Way" button calls `startTracking` (gets hub GPS coords)
+  - `expo-location watchPositionAsync` every 10s/20m; haversine distance calculation client-side
+  - 200m threshold: green "Hub notified" banner
+  - 50m threshold: auto-switch to Arrived screen with pulsing Order ID
+  - POSTs to `/api/orders/:id/location-update` and `/api/orders/:id/arrived`
+- `MyOrdersScreen.tsx` updated — blue "Track" button for `express_pickup` orders in active statuses
+- `navigation/types.ts` and `navigation/index.tsx` updated — TrackOrder in OrderStack
+
 ### Iteration 4 (Mobile OTP Bug Fix — Feb 2026)
 - Fixed navigation crash in OTPScreen: removed `navigation.reset()` in favour of `login()` from AuthContext (state-driven navigator swap in App.tsx).
 - Removed `"newArchEnabled": false` from `app.json`.
@@ -66,15 +89,16 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - **103/103 backend tests + 100% CL Panel UI flows pass**.
 
 ## Backlog / Next Actions
-- Real Firebase Phone Auth + real Razorpay HMAC (interfaces compatible, code present). [P1]
-- Push notifications on order lifecycle (out_for_delivery, arrived, delivered). [P1]
+- Real Firebase Phone Auth — DONE (code + packages in place; needs `google-services.json` + Firebase credentials to activate for real phones). [P1 ✓]
+- Real Razorpay payment gateway integration (currently mocked). [P1]
+- Push notifications on order lifecycle events (out_for_delivery, arrived, delivered). [P1]
+- Track My Order screen (Express Pickup) — DONE. [P2 ✓]
 - CL commission auto-payout via Razorpay Payouts (currently manual "Withdraw — coming soon"). [P2]
-- Product suggestions in Reports: consider Monday-based week aggregation for India (currently Sunday-based). [P3]
-- Optional: server-side email/IFSC format validators on PUT /api/cl/profile. [P3]
-- EAS Build setup for React Native production APK/IPA. [P2]
+- EAS Build setup for production APK/IPA. [P2]
 - CL Society gamification (badge unlocks for society CLs). [P2]
 - Operations Health Dashboard (conversion velocity / supply chain drift). [P3]
-- Cleanup: Remove unused RootStackParamList type from /app/mobile/src/navigation/types.ts [minor]
+- Cleanup: remove unused `RootStackParamList` type from `/app/mobile/src/navigation/types.ts` [minor]
+- Product suggestions in Reports: consider Monday-based week aggregation for India. [P3]
 
 ## Customer Mobile App (Expo SDK 54 + TypeScript)
 Location: `/app/mobile/`
