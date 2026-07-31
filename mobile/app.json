@@ -37,8 +37,6 @@
       "favicon": "./assets/logo.png"
     },
     "plugins": [
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
       [
         "expo-location",
         {
@@ -51,8 +49,7 @@
           "icon": "./assets/logo.png",
           "color": "#22C55E"
         }
-      ],
-      "react-native-maps"
+      ]
     ],
     "extra": {
       "eas": {

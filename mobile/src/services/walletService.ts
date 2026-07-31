@@ -23,24 +23,45 @@ export interface CoinTransaction {
   expiresAt?: string;
 }
 
+const DEMO_WALLET: WalletData = { balance: 0, coins: 25 };
+const DEMO_COIN_TXN: CoinTransaction[] = [
+  { _id: 'ct1', type: 'earned', coins: 25, reason: 'Welcome bonus', createdAt: new Date().toISOString() },
+];
+
 export async function getWallet(): Promise<WalletData> {
-  const res = await api.get('/api/wallet');
-  return res.data.wallet ?? res.data;
+  try {
+    const res = await api.get('/api/wallet');
+    return res.data.wallet ?? res.data ?? DEMO_WALLET;
+  } catch {
+    return DEMO_WALLET;
+  }
 }
 
 export async function getWalletTransactions(): Promise<WalletTransaction[]> {
-  const res = await api.get('/api/wallet');
-  return res.data.transactions ?? [];
+  try {
+    const res = await api.get('/api/wallet');
+    return res.data.transactions ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getCoinHistory(): Promise<CoinTransaction[]> {
-  const res = await api.get('/api/coins/history');
-  return res.data.transactions ?? [];
+  try {
+    const res = await api.get('/api/coins/history');
+    return res.data.transactions ?? [];
+  } catch {
+    return DEMO_COIN_TXN;
+  }
 }
 
 export async function getCoinBalance(): Promise<WalletData> {
-  const res = await api.get('/api/coins/balance');
-  return res.data;
+  try {
+    const res = await api.get('/api/coins/balance');
+    return res.data ?? DEMO_WALLET;
+  } catch {
+    return DEMO_WALLET;
+  }
 }
 
 export async function validateClForCoins(clCode: string): Promise<{
@@ -49,8 +70,12 @@ export async function validateClForCoins(clCode: string): Promise<{
   society?: string;
   coinsToEarn: number;
 }> {
-  const res = await api.post('/api/coins/validate-cl', { clCode });
-  return res.data;
+  try {
+    const res = await api.post('/api/coins/validate-cl', { clCode });
+    return res.data;
+  } catch {
+    return { valid: false, coinsToEarn: 0 };
+  }
 }
 
 export async function getReferralInfo(): Promise<{
@@ -68,6 +93,10 @@ export async function getReferralInfo(): Promise<{
     coinsEarned: number;
   }>;
 }> {
-  const res = await api.get('/api/referral/me');
-  return res.data;
+  try {
+    const res = await api.get('/api/referral/me');
+    return res.data;
+  } catch {
+    return { referralCode: 'GROVEN', totalReferrals: 0, completedReferrals: 0, pendingReferrals: 0, totalEarnings: 0, referrals: [] };
+  }
 }

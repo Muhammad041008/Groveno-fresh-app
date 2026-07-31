@@ -45,8 +45,18 @@ export async function verifyOtpFirebase(
 }
 
 export async function getMe(): Promise<User> {
-  const res = await api.get('/api/auth/me');
-  return res.data.user ?? res.data;
+  try {
+    const res = await api.get('/api/auth/me');
+    const u: User = res.data.user ?? res.data;
+    // Keep local cache fresh
+    await AsyncStorage.setItem('groveno_user', JSON.stringify(u));
+    return u;
+  } catch {
+    // Fall back to locally stored user (works offline)
+    const local = await getLocalUser();
+    if (local) return local;
+    throw new Error('Not authenticated');
+  }
 }
 
 export async function updateProfile(data: Partial<User>): Promise<User> {

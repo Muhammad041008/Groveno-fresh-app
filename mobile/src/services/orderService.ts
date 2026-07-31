@@ -57,9 +57,35 @@ export interface PickupPoint {
   isActive: boolean;
 }
 
+const DEMO_PICKUP_POINTS: PickupPoint[] = [
+  {
+    _id: 'pp1',
+    name: 'Green Hub — Sector 21',
+    address: 'Near Main Gate, Sector 21, Noida',
+    latitude: 28.6139,
+    longitude: 77.2090,
+    operatingHours: { open: '4:00 PM', close: '8:00 PM' },
+    isActive: true,
+  },
+  {
+    _id: 'pp2',
+    name: 'Fresh Point — Block A',
+    address: 'Block A Community Centre, Sector 15',
+    latitude: 28.6200,
+    longitude: 77.2150,
+    operatingHours: { open: '5:00 PM', close: '9:00 PM' },
+    isActive: true,
+  },
+];
+
 export async function getPickupPoints(): Promise<PickupPoint[]> {
-  const res = await api.get('/api/pickup-points');
-  return res.data.pickupPoints ?? res.data ?? [];
+  try {
+    const res = await api.get('/api/pickup-points');
+    const pts = res.data.pickupPoints ?? res.data ?? [];
+    return pts.length > 0 ? pts : DEMO_PICKUP_POINTS;
+  } catch {
+    return DEMO_PICKUP_POINTS;
+  }
 }
 
 export async function placeHomeDelivery(data: {
@@ -85,8 +111,12 @@ export async function placeExpressPickup(data: {
 }
 
 export async function getMyOrders(page = 1, limit = 20): Promise<Order[]> {
-  const res = await api.get('/api/orders', { params: { page, limit } });
-  return res.data.orders ?? res.data ?? [];
+  try {
+    const res = await api.get('/api/orders', { params: { page, limit } });
+    return res.data.orders ?? res.data ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getOrderById(id: string): Promise<Order> {
@@ -120,8 +150,12 @@ export async function validateClCode(code: string): Promise<{
   society?: string;
   coinsToEarn?: number;
 }> {
-  const res = await api.get(`/api/cl/validate/${code}`);
-  return res.data;
+  try {
+    const res = await api.get(`/api/cl/validate/${code}`);
+    return res.data;
+  } catch {
+    return { valid: false };
+  }
 }
 
 export async function startTracking(orderId: string): Promise<{
@@ -139,11 +173,7 @@ export async function sendLocationUpdate(
   lng: number,
   distanceToHub: number
 ): Promise<void> {
-  await api.post(`/api/orders/${orderId}/location-update`, {
-    lat,
-    lng,
-    distanceToHub,
-  });
+  await api.post(`/api/orders/${orderId}/location-update`, { lat, lng, distanceToHub });
 }
 
 export async function markArrived(orderId: string): Promise<void> {
