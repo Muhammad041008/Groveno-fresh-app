@@ -47,6 +47,18 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
+### Iteration 6 (Expo Go Fix + Track Order — Feb 2026)
+**Expo Go compatibility:**
+- Removed `@react-native-firebase/app` + `@react-native-firebase/auth` from package.json and app.json plugins (were crashing Metro bundler in Expo Go)
+- Simplified `firebaseStore.ts` to pure mock (`firebaseAuth=null`, `isFirebaseAvailable=false`)
+- Updated `react-native-safe-area-context`, `react-native-screens`, `react-native-gesture-handler` to correct Expo SDK 54 versions
+- Added DEMO_PRODUCTS (12 items), DEMO_CATEGORIES (6 items) fallbacks in `productService.ts`
+- Added DEMO_WALLET, DEMO_PICKUP_POINTS fallbacks in `walletService.ts` / `orderService.ts`
+- `authService.getMe()` now falls back to local AsyncStorage cache if API fails
+- `LoginScreen` shows "Dev Build Required" for real phones; demo phone `1234567890` always works
+- **Metro QR Code**: `exp://skirts-litigation-refers-quiz.trycloudflare.com` (Cloudflare quick tunnel, session-based)
+- TypeScript: 0 errors
+
 ### Iteration 5 (Firebase OTP + Track Order — Feb 2026)
 **Task 1 — Firebase Phone Auth:**
 - Backend `auth.controller.js` now accepts `{ firebaseToken }` (Firebase path) OR `{ phone, otp }` (mock/legacy path)
