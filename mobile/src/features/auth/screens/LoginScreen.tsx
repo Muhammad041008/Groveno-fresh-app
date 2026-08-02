@@ -41,9 +41,8 @@ export default function LoginScreen() {
 
     try {
       if (isDemoPhone(phone)) {
-        // ── Demo / mock mode ─────────────────────────────────────
-        // Skip Firebase — call backend sendOtp for form's sake then navigate
-        try { await authService.sendOtp(DEMO_PHONE_E164); } catch { /* ok */ }
+        // ── Demo / offline mode ───────────────────────────────────
+        // No network call — navigate directly to OTP screen
         navigation.navigate('OTP', { phone: DEMO_PHONE_E164, isMockMode: true });
       } else if (isFirebaseAvailable) {
         // ── Firebase mode (dev build) ─────────────────────────────

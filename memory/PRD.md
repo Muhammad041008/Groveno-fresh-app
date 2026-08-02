@@ -47,6 +47,16 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
+### Iteration 8 (Demo Mode Offline Fix — Feb 2026)
+**All 5 Demo Mode bugs fixed — app is now 100% offline in Demo Mode:**
+- `authService.ts:verifyOtpMock` — replaced backend API call with fully offline local demo user creation (AsyncStorage only). Accepts only phone `1234567890` + OTP `1234`; returns a friendly error for any other combination.
+- `LoginScreen.tsx` — removed `sendOtp()` call in demo path (was silently failing).
+- `OTPScreen.tsx:handleResend` — removed `sendOtp()` call in mock mode (same silent fail).
+- `orderService.ts:placeHomeDelivery` + `placeExpressPickup` — wrapped in try/catch with `makeDemoOrder()` fallback so Checkout → OrderSuccess works offline.
+- `walletService.ts:DEMO_WALLET` — updated to `{balance:250, coins:120}` matching demo user.
+- `/app/cloudflared` saved in persistent `/app` directory (not `/tmp`).
+- TypeScript: **0 errors**. Metro bundle: **HTTP 200, 7.39MB**.
+
 ### Iteration 7 (RN 0.81.5 Upgrade + Full Code Audit — Feb 2026)
 **Complete Expo Go Stability:**
 - Upgraded `react-native` to `0.81.5` and `react` to `19.1.0` to match `expo@54.0.36` strict peer deps
@@ -67,7 +77,7 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Added DEMO_WALLET, DEMO_PICKUP_POINTS fallbacks in `walletService.ts` / `orderService.ts`
 - `authService.getMe()` now falls back to local AsyncStorage cache if API fails
 - `LoginScreen` shows "Dev Build Required" for real phones; demo phone `1234567890` always works
-- **Metro QR Code**: `exp://sale-wichita-bibliography-consent.trycloudflare.com` (Cloudflare quick tunnel, session-based)
+- **Metro QR Code**: `exp://euros-concepts-infections-southwest.trycloudflare.com` (Cloudflare quick tunnel, session-based)
 - TypeScript: 0 errors
 
 ### Iteration 5 (Firebase OTP + Track Order — Feb 2026)

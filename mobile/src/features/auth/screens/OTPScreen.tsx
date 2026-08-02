@@ -118,7 +118,7 @@ export default function OTPScreen() {
     setResendTimer(RESEND_SECONDS);
     try {
       if (isMockMode || isDemoPhone(phone)) {
-        await authService.sendOtp(phone).catch(() => {});
+        // Demo mode — no network call needed; OTP hint is already shown on screen
       } else if (firebaseAuth) {
         const confirmation = await firebaseAuth().signInWithPhoneNumber(phone);
         setConfirmationResult(confirmation);

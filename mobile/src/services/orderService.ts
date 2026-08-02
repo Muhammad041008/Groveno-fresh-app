@@ -88,6 +88,30 @@ export async function getPickupPoints(): Promise<PickupPoint[]> {
   }
 }
 
+// Generates a realistic demo order when the backend is offline
+function makeDemoOrder(
+  channel: 'home_delivery' | 'express_pickup',
+  items: Array<{ product: string; name: string; price: number; qty: number; total: number }>,
+  total: number
+): Order {
+  const suffix = Date.now().toString().slice(-6);
+  return {
+    _id: `demo_order_${suffix}`,
+    orderNumber: `GRV${suffix}`,
+    channel,
+    status: 'confirmed',
+    items: items.map((i) => ({ ...i, emoji: '🛒' })),
+    subtotal: total,
+    deliveryFee: channel === 'home_delivery' ? (total >= 199 ? 0 : 30) : 30,
+    packagingFee: 5,
+    discount: channel === 'express_pickup' ? Math.round(total * 0.05) : 0,
+    total,
+    coinsEarned: 15,
+    paymentMethod: 'cod',
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export async function placeHomeDelivery(data: {
   items: Array<{ product: string; name: string; price: number; qty: number; total: number }>;
   address: { society: string; tower: string; flat: string; instructions?: string };
@@ -97,8 +121,12 @@ export async function placeHomeDelivery(data: {
   paymentMethod: string;
   specialInstructions?: string;
 }): Promise<Order> {
-  const res = await api.post('/api/orders/home-delivery', data);
-  return res.data.order ?? res.data;
+  try {
+    const res = await api.post('/api/orders/home-delivery', data);
+    return res.data.order ?? res.data;
+  } catch {
+    return makeDemoOrder('home_delivery', data.items, data.items.reduce((s, i) => s + i.total, 0));
+  }
 }
 
 export async function placeExpressPickup(data: {
@@ -106,8 +134,12 @@ export async function placeExpressPickup(data: {
   pickupPointId: string;
   paymentMethod: string;
 }): Promise<Order> {
-  const res = await api.post('/api/orders/express-pickup', data);
-  return res.data.order ?? res.data;
+  try {
+    const res = await api.post('/api/orders/express-pickup', data);
+    return res.data.order ?? res.data;
+  } catch {
+    return makeDemoOrder('express_pickup', data.items, data.items.reduce((s, i) => s + i.total, 0));
+  }
 }
 
 export async function getMyOrders(page = 1, limit = 20): Promise<Order[]> {

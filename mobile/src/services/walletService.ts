@@ -23,9 +23,11 @@ export interface CoinTransaction {
   expiresAt?: string;
 }
 
-const DEMO_WALLET: WalletData = { balance: 0, coins: 25 };
+const DEMO_WALLET: WalletData = { balance: 250, coins: 120 };
 const DEMO_COIN_TXN: CoinTransaction[] = [
-  { _id: 'ct1', type: 'earned', coins: 25, reason: 'Welcome bonus', createdAt: new Date().toISOString() },
+  { _id: 'ct1', type: 'earned', coins: 50, reason: 'First order bonus', createdAt: new Date().toISOString() },
+  { _id: 'ct2', type: 'earned', coins: 15, reason: 'Order via CL', createdAt: new Date(Date.now() - 86400000).toISOString() },
+  { _id: 'ct3', type: 'earned', coins: 55, reason: 'Referral bonus', createdAt: new Date(Date.now() - 172800000).toISOString() },
 ];
 
 export async function getWallet(): Promise<WalletData> {
