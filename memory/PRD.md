@@ -47,6 +47,17 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
+### Iteration 7 (RN 0.81.5 Upgrade + Full Code Audit — Feb 2026)
+**Complete Expo Go Stability:**
+- Upgraded `react-native` to `0.81.5` and `react` to `19.1.0` to match `expo@54.0.36` strict peer deps
+- Fixed `SearchScreen.tsx` React 19 `useRef` strict TypeScript error: `useRef<ReturnType<typeof setTimeout> | undefined>(undefined)`
+- Full code audit of all 22 screens: TypeScript compiles with **0 errors**
+- Metro bundle verified: **HTTP 200, 7.4MB** — no `SyntaxError: private properties are not supported`
+- All packages verified present: axios, expo-location, expo-clipboard, react-native-maps (try/catch wrapped), safe-area-context, @expo/vector-icons, react-navigation stacks
+- Cloudflare tunnel + metro_proxy.py verified: manifest URLs correctly rewritten (no `:8081` port)
+- **Metro QR Code**: `exp://sale-wichita-bibliography-consent.trycloudflare.com` (session-based, regenerate with `./tmp/cloudflared tunnel --url http://localhost:8082`)
+- Demo login: Phone `1234567890`, OTP `1234` (any 4 digits)
+
 ### Iteration 6 (Expo Go Fix + Track Order — Feb 2026)
 **Expo Go compatibility:**
 - Removed `@react-native-firebase/app` + `@react-native-firebase/auth` from package.json and app.json plugins (were crashing Metro bundler in Expo Go)
@@ -56,7 +67,7 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Added DEMO_WALLET, DEMO_PICKUP_POINTS fallbacks in `walletService.ts` / `orderService.ts`
 - `authService.getMe()` now falls back to local AsyncStorage cache if API fails
 - `LoginScreen` shows "Dev Build Required" for real phones; demo phone `1234567890` always works
-- **Metro QR Code**: `exp://skirts-litigation-refers-quiz.trycloudflare.com` (Cloudflare quick tunnel, session-based)
+- **Metro QR Code**: `exp://sale-wichita-bibliography-consent.trycloudflare.com` (Cloudflare quick tunnel, session-based)
 - TypeScript: 0 errors
 
 ### Iteration 5 (Firebase OTP + Track Order — Feb 2026)
@@ -146,9 +157,13 @@ Location: `/app/mobile/`
 
 ### To run
 ```bash
-cd /app/mobile && npx expo start
+cd /app/mobile && npx expo start --port 8081
+# Tunnel (Cloudflare) is already started in the environment:
+# Metro proxy: python3 /app/metro_proxy.py TUNNEL_HOST 8082
+# Cloudflared: /tmp/cloudflared tunnel --url http://localhost:8082
 ```
 Scan QR in Expo Go app (maps need dev build: `npx expo run:android`)
+Demo login: Phone `1234567890`, any 4-digit OTP
 
 ## Public URLs
 - App: https://delivery-coins.preview.emergentagent.com

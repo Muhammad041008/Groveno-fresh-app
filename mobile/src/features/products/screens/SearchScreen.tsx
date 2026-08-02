@@ -32,7 +32,7 @@ export default function SearchScreen() {
   const [results, setResults] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searching, setSearching] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 200);
