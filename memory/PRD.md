@@ -47,6 +47,15 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
+### Iteration 9 (UI/UX Improvement — Feb 2026)
+**Bottom nav, two-panel Categories, compact ProductCard:**
+- `navigation/index.tsx`: Added `CartTabIcon` component (uses `useCart()` for live badge count); Cart tab now visible in bottom nav with item-count badge; Profile tab hidden from bottom bar (still navigable via avatar); TypeScript + bundle verify: 0 errors, HTTP 200.
+- `CategoriesScreen.tsx`: Replaced single-column list with two-panel layout — 88px sidebar (all categories + "All") with green active-bar indicator, inline right-panel product grid with `numColumns=2`, page-based pagination via `onEndReached`. No navigation to ProductListing for category selection — products update inline.
+- `ProductCard.tsx`: Price + ADD button now on the same row (`bottomRow`), removing one stacked row for a more compact grocery-card look.
+- `metro.config.js`: Added to persistent `/app/mobile/` with `blockList` for integration test directories.
+- `/app/cloudflared`: Moved to persistent `/app/` directory to survive pod restarts.
+- Expo Go URL: `exp://jackie-recommendation-martha-america.trycloudflare.com`
+
 ### Iteration 8 (Demo Mode Offline Fix — Feb 2026)
 **All 5 Demo Mode bugs fixed — app is now 100% offline in Demo Mode:**
 - `authService.ts:verifyOtpMock` — replaced backend API call with fully offline local demo user creation (AsyncStorage only). Accepts only phone `1234567890` + OTP `1234`; returns a friendly error for any other combination.

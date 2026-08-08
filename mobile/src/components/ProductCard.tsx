@@ -63,13 +63,13 @@ export default function ProductCard({ product, onPress }: ProductCardProps) {
         <Text style={styles.name} numberOfLines={2}>
           {product.name}
         </Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹{product.price}</Text>
-          {product.mrp > product.price && (
-            <Text style={styles.mrp}>₹{product.mrp}</Text>
-          )}
-        </View>
-        <View style={styles.addRow}>
+        <View style={styles.bottomRow}>
+          <View style={styles.priceBlock}>
+            <Text style={styles.price}>₹{product.price}</Text>
+            {product.mrp > product.price && (
+              <Text style={styles.mrp}>₹{product.mrp}</Text>
+            )}
+          </View>
           <AddButton product={cartProduct} compact />
         </View>
       </View>
@@ -138,23 +138,24 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     lineHeight: 18,
   },
-  priceRow: {
+  bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  priceBlock: {
+    flex: 1,
+    gap: 2,
   },
   price: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   mrp: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textLight,
     textDecorationLine: 'line-through',
-  },
-  addRow: {
-    alignItems: 'flex-end',
   },
 });

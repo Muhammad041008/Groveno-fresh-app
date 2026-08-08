@@ -1,9 +1,10 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Platform } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
+import { useCart } from '../context/CartContext';
 
 import SplashScreen from '../features/auth/screens/SplashScreen';
 import OnboardingScreen from '../features/auth/screens/OnboardingScreen';
@@ -59,6 +60,33 @@ function GridIcon({ color, size }: { color: string; size: number }) {
       {[0, 1, 2, 3].map((i) => (
         <View key={i} style={{ width: dot, height: dot, backgroundColor: color, borderRadius: 2 }} />
       ))}
+    </View>
+  );
+}
+
+function CartTabIcon({ color, size, focused }: { color: string; size: number; focused: boolean }) {
+  const { totalItems } = useCart();
+  return (
+    <View style={{ width: size + 8, height: size + 8, alignItems: 'center', justifyContent: 'center' }}>
+      <Ionicons name={focused ? 'cart' : 'cart-outline'} size={size} color={color} />
+      {totalItems > 0 && (
+        <View style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          backgroundColor: '#EF4444',
+          borderRadius: 8,
+          minWidth: 16,
+          height: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 3,
+        }}>
+          <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', lineHeight: 12 }}>
+            {totalItems > 9 ? '9+' : String(totalItems)}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -177,21 +205,21 @@ export function MainNavigator() {
         }}
       />
       <Tab.Screen
-        name="ProfileTab"
-        component={ProfileNavigator}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
         name="CartTab"
         component={CartNavigator}
         options={{
-          tabBarItemStyle: { display: 'none' },
+          tabBarLabel: 'Cart',
+          tabBarIcon: ({ color, size, focused }) => (
+            <CartTabIcon color={color} size={size} focused={focused} />
+          ),
           tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileNavigator}
+        options={{
+          tabBarItemStyle: { display: 'none' },
         }}
       />
     </Tab.Navigator>
