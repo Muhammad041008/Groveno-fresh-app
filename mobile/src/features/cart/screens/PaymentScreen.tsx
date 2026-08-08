@@ -37,7 +37,7 @@ export default function PaymentScreen() {
       let order;
       const data = orderData as Record<string, any>;
 
-      if (channel === 'home_delivery') {
+      if (channel === 'home_delivery' || channel === 'cl_order') {
         order = await orderService.placeHomeDelivery({
           items: data.items,
           address: data.address,
@@ -136,7 +136,11 @@ export default function PaymentScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Channel</Text>
             <Text style={styles.summaryValue}>
-              {channel === 'home_delivery' ? '🏠 Home Delivery' : '⚡ Express Pickup'}
+              {channel === 'home_delivery'
+                ? '🏠 Home Delivery'
+                : channel === 'cl_order'
+                ? '👥 Order via CL'
+                : '⚡ Express Pickup'}
             </Text>
           </View>
         </View>

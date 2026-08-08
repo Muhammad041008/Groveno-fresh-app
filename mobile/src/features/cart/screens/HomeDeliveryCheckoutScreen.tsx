@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CartStackParamList } from '../../../navigation/types';
 import { useCart } from '../../../context/CartContext';
 import * as orderService from '../../../services/orderService';
@@ -30,13 +30,21 @@ import {
 import { colors, spacing, borderRadius, shadows } from '../../../theme';
 
 type Nav = NativeStackNavigationProp<CartStackParamList, 'HomeDeliveryCheckout'>;
+type Route = NativeStackScreenProps<CartStackParamList, 'HomeDeliveryCheckout'>['route'];
+
+// Slots for CL orders: Morning and Evening only (no express surge)
+const CL_SLOTS = DELIVERY_SLOTS.filter((s) => s.id !== 'express_30min');
 
 export default function HomeDeliveryCheckoutScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<Route>();
+  const { mode } = route.params;
+  const isCL = mode === 'cl_order';
+
   const { items, totalPrice } = useCart();
 
   const [slot, setSlot] = useState('morning');
-  const [address, setAddress] = useState({ society: '', tower: '', flat: '', instructions: '' });
+  const [address, setAddress] = useState({ society: '', tower: '', flat: '' });
   const [clCode, setClCode] = useState('');
   const [clInfo, setClInfo] = useState<{ valid: boolean; clName?: string; coinsToEarn?: number } | null>(null);
   const [validatingCL, setValidatingCL] = useState(false);
@@ -56,10 +64,9 @@ export default function HomeDeliveryCheckoutScreen() {
   const canUseCoins = totalPrice >= COINS_MIN_ORDER && coinsBalance > 0;
   const coinsDiscount = canUseCoins && useCoins ? maxCoinsUsable : 0;
 
-  const expressFee = slot === 'express_30min' ? 15 : 0;
   const deliveryFee = totalPrice >= DELIVERY_FREE_THRESHOLD ? 0 : DELIVERY_FEE;
   const packagingFee = 5;
-  const grandTotal = totalPrice + deliveryFee + packagingFee + expressFee - coinsDiscount;
+  const grandTotal = totalPrice + deliveryFee + packagingFee - coinsDiscount;
 
   const validateCL = async () => {
     if (!clCode.trim()) return;
@@ -69,17 +76,25 @@ export default function HomeDeliveryCheckoutScreen() {
       setClInfo(res);
       if (!res.valid) Alert.alert('Invalid Code', 'No CL found with this code.');
     } catch {
-      Alert.alert('Error', 'Could not validate CL code.');
+      Alert.alert('Error', 'Could not validate CL code. Check your code and try again.');
     } finally {
       setValidatingCL(false);
     }
   };
 
   const handlePlaceOrder = async () => {
-    if (!address.society || !address.flat) {
-      Alert.alert('Address Required', 'Please fill in society name and flat number.');
-      return;
+    if (isCL) {
+      if (!clInfo?.valid) {
+        Alert.alert('CL Code Required', 'Please enter and validate your Community Leader code to continue.');
+        return;
+      }
+    } else {
+      if (!address.society.trim() || !address.flat.trim()) {
+        Alert.alert('Address Required', 'Please fill in your society name and flat number.');
+        return;
+      }
     }
+
     setPlacing(true);
     try {
       const orderItems = items.map((i) => ({
@@ -90,13 +105,13 @@ export default function HomeDeliveryCheckoutScreen() {
         total: i.price * i.qty,
       }));
       navigation.navigate('Payment', {
-        channel: 'home_delivery',
+        channel: mode,
         total: grandTotal,
         orderData: {
           items: orderItems,
-          address,
-          deliverySlot: slot,
-          clCode: clInfo?.valid ? clCode : undefined,
+          address: isCL ? undefined : address,
+          deliverySlot: isCL ? slot : 'standard',
+          clCode: isCL && clInfo?.valid ? clCode : undefined,
           coinsToUse: coinsDiscount,
           specialInstructions: instructions,
         },
@@ -109,60 +124,117 @@ export default function HomeDeliveryCheckoutScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Home Delivery</Text>
+        <Text style={styles.headerTitle}>
+          {isCL ? 'Order via Community Leader' : 'Home Delivery'}
+        </Text>
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-
-        {/* Delivery Slots */}
-        <SectionTitle>Choose Delivery Slot</SectionTitle>
-        {DELIVERY_SLOTS.map((s) => (
-          <TouchableOpacity
-            key={s.id}
-            style={[styles.slotCard, slot === s.id && styles.slotActive]}
-            onPress={() => setSlot(s.id)}
-          >
-            <Text style={styles.slotEmoji}>{s.emoji}</Text>
-            <View style={styles.slotInfo}>
-              <Text style={[styles.slotLabel, slot === s.id && styles.slotLabelActive]}>{s.label}</Text>
-              <Text style={styles.slotTime}>{s.time}</Text>
-              <Text style={styles.slotMeta}>{s.info}</Text>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── CL MODE: CL Code block (primary, shown first) ──────────── */}
+        {isCL && (
+          <>
+            <SectionTitle>Community Leader Code *</SectionTitle>
+            <View style={[styles.card, styles.clCard]}>
+              <Text style={styles.clLabel}>
+                Enter your CL code to place this order. Your Community Leader will handle delivery.
+              </Text>
+              <View style={styles.clInputRow}>
+                <TextInput
+                  style={styles.clInput}
+                  value={clCode}
+                  onChangeText={(t) => { setClCode(t.toUpperCase()); setClInfo(null); }}
+                  placeholder="e.g. CL12345"
+                  placeholderTextColor={colors.textLight}
+                  autoCapitalize="characters"
+                />
+                <TouchableOpacity
+                  style={[styles.validateBtn, (!clCode.trim() || validatingCL) && styles.validateBtnDisabled]}
+                  onPress={validateCL}
+                  disabled={!clCode.trim() || validatingCL}
+                >
+                  {validatingCL ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.validateBtnText}>Validate</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {clInfo?.valid && (
+                <View style={styles.clSuccess}>
+                  <View style={styles.clSuccessRow}>
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                    <Text style={styles.clSuccessText}>{clInfo.clName}</Text>
+                  </View>
+                  <Text style={styles.clCoins}>
+                    🪙 You will earn {clInfo.coinsToEarn} coins after delivery
+                  </Text>
+                </View>
+              )}
             </View>
-            <View style={[styles.radio, slot === s.id && styles.radioActive]}>
-              {slot === s.id && <View style={styles.radioDot} />}
+
+            {/* CL MODE: Delivery Slot (Morning / Evening only) */}
+            <SectionTitle>Choose Delivery Slot</SectionTitle>
+            {CL_SLOTS.map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={[styles.slotCard, slot === s.id && styles.slotActive]}
+                onPress={() => setSlot(s.id)}
+              >
+                <Text style={styles.slotEmoji}>{s.emoji}</Text>
+                <View style={styles.slotInfo}>
+                  <Text style={[styles.slotLabel, slot === s.id && styles.slotLabelActive]}>{s.label}</Text>
+                  <Text style={styles.slotTime}>{s.time}</Text>
+                  <Text style={styles.slotMeta}>{s.info}</Text>
+                </View>
+                <View style={[styles.radio, slot === s.id && styles.radioActive]}>
+                  {slot === s.id && <View style={styles.radioDot} />}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
+
+        {/* ── HOME DELIVERY MODE: Address block ────────────────────── */}
+        {!isCL && (
+          <>
+            <SectionTitle>Delivery Address</SectionTitle>
+            <View style={styles.card}>
+              <InputField
+                label="Society / Apartment Name *"
+                value={address.society}
+                onChangeText={(t) => setAddress((a) => ({ ...a, society: t }))}
+                placeholder="e.g. Nirala Estate"
+              />
+              <InputField
+                label="Tower / Building"
+                value={address.tower}
+                onChangeText={(t) => setAddress((a) => ({ ...a, tower: t }))}
+                placeholder="e.g. Tower B"
+              />
+              <InputField
+                label="Flat / House Number *"
+                value={address.flat}
+                onChangeText={(t) => setAddress((a) => ({ ...a, flat: t }))}
+                placeholder="e.g. Flat 403"
+              />
             </View>
-          </TouchableOpacity>
-        ))}
+            <View style={styles.deliveryNote}>
+              <Ionicons name="information-circle-outline" size={15} color={colors.textSecondary} />
+              <Text style={styles.deliveryNoteText}>Delivery as per availability</Text>
+            </View>
+          </>
+        )}
 
-        {/* Delivery Address */}
-        <SectionTitle>Delivery Address</SectionTitle>
-        <View style={styles.card}>
-          <InputField
-            label="Society / Apartment Name *"
-            value={address.society}
-            onChangeText={(t) => setAddress((a) => ({ ...a, society: t }))}
-            placeholder="e.g. Nirala Estate"
-          />
-          <InputField
-            label="Tower / Building"
-            value={address.tower}
-            onChangeText={(t) => setAddress((a) => ({ ...a, tower: t }))}
-            placeholder="e.g. Tower B"
-          />
-          <InputField
-            label="Flat / House Number *"
-            value={address.flat}
-            onChangeText={(t) => setAddress((a) => ({ ...a, flat: t }))}
-            placeholder="e.g. Flat 403"
-          />
-        </View>
-
-        {/* Special Instructions */}
+        {/* ── BOTH: Special Instructions ───────────────────────────── */}
         <SectionTitle>Special Instructions (Optional)</SectionTitle>
         <View style={styles.card}>
           <TextInput
@@ -187,42 +259,7 @@ export default function HomeDeliveryCheckoutScreen() {
           </View>
         </View>
 
-        {/* CL Code */}
-        <SectionTitle>Community Leader Code</SectionTitle>
-        <View style={[styles.card, styles.clCard]}>
-          <Text style={styles.clLabel}>Have a CL code? Enter it to earn Groveno Coins</Text>
-          <View style={styles.clInputRow}>
-            <TextInput
-              style={styles.clInput}
-              value={clCode}
-              onChangeText={(t) => { setClCode(t.toUpperCase()); setClInfo(null); }}
-              placeholder="e.g. CL12345"
-              placeholderTextColor={colors.textLight}
-              autoCapitalize="characters"
-            />
-            <TouchableOpacity
-              style={styles.validateBtn}
-              onPress={validateCL}
-              disabled={!clCode.trim() || validatingCL}
-            >
-              {validatingCL ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.validateBtnText}>Validate</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-          {clInfo?.valid && (
-            <View style={styles.clSuccess}>
-              <Text style={styles.clSuccessText}>✅ {clInfo.clName}</Text>
-              <Text style={styles.clCoins}>
-                🪙 You will earn {clInfo.coinsToEarn} coins after delivery
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Coins */}
+        {/* ── BOTH: Groveno Coins ──────────────────────────────────── */}
         {canUseCoins && (
           <>
             <SectionTitle>Groveno Coins</SectionTitle>
@@ -230,12 +267,8 @@ export default function HomeDeliveryCheckoutScreen() {
               <View style={styles.coinsRow}>
                 <View>
                   <Text style={styles.coinsTitle}>🪙 Use Groveno Coins</Text>
-                  <Text style={styles.coinsSub}>
-                    Available: {coinsBalance} coins = ₹{coinsBalance}
-                  </Text>
-                  {useCoins && (
-                    <Text style={styles.coinsSave}>Saving ₹{coinsDiscount} on this order</Text>
-                  )}
+                  <Text style={styles.coinsSub}>Available: {coinsBalance} coins = ₹{coinsBalance}</Text>
+                  {useCoins && <Text style={styles.coinsSave}>Saving ₹{coinsDiscount} on this order</Text>}
                 </View>
                 <Switch
                   value={useCoins}
@@ -248,12 +281,11 @@ export default function HomeDeliveryCheckoutScreen() {
           </>
         )}
 
-        {/* Bill Summary */}
+        {/* ── BOTH: Bill Summary ───────────────────────────────────── */}
         <SectionTitle>Bill Summary</SectionTitle>
         <View style={styles.card}>
           <BillRow label="Items Total" value={`₹${totalPrice.toFixed(0)}`} />
           <BillRow label="Delivery Fee" value={deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`} green={deliveryFee === 0} />
-          {expressFee > 0 && <BillRow label="Express Surge" value={`₹${expressFee}`} />}
           <BillRow label="Packaging Fee" value={`₹${packagingFee}`} />
           {coinsDiscount > 0 && <BillRow label="Coins Discount" value={`-₹${coinsDiscount}`} green />}
           <View style={styles.divider} />
@@ -278,6 +310,8 @@ export default function HomeDeliveryCheckoutScreen() {
     </SafeAreaView>
   );
 }
+
+// ── Helper components ──────────────────────────────────────────────
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <Text style={styles.sectionTitle}>{children as string}</Text>;
@@ -313,6 +347,8 @@ function BillRow({ label, value, bold = false, green = false }: {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: {
@@ -334,6 +370,8 @@ const styles = StyleSheet.create({
     ...shadows.card,
     marginBottom: 4,
   },
+
+  /* Delivery slots */
   slotCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -352,32 +390,21 @@ const styles = StyleSheet.create({
   slotLabelActive: { color: colors.primaryDark },
   slotTime: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   slotMeta: { fontSize: 11, color: colors.textLight, marginTop: 2 },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.borderMid, alignItems: 'center', justifyContent: 'center' },
-  radioActive: { borderColor: colors.primary },
-  radioDot: { width: 11, height: 11, borderRadius: 5.5, backgroundColor: colors.primary },
-  instructionInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    padding: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-    minHeight: 70,
-    textAlignVertical: 'top',
-    marginBottom: 10,
+
+  /* Address section */
+  deliveryNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    marginBottom: 4,
+    paddingHorizontal: 2,
   },
-  quickTips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  quickChip: {
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quickChipText: { fontSize: 12, color: colors.textSecondary },
+  deliveryNoteText: { fontSize: 12, color: colors.textSecondary },
+
+  /* CL section */
   clCard: { borderWidth: 1, borderColor: colors.primary, backgroundColor: '#F0FDF4' },
-  clLabel: { fontSize: 13, color: colors.primaryDark, marginBottom: 10, fontWeight: '500' },
+  clLabel: { fontSize: 13, color: colors.primaryDark, marginBottom: 10, fontWeight: '500', lineHeight: 18 },
   clInputRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   clInput: {
     flex: 1,
@@ -400,15 +427,46 @@ const styles = StyleSheet.create({
     minWidth: 80,
     alignItems: 'center',
   },
+  validateBtnDisabled: { opacity: 0.5 },
   validateBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   clSuccess: { marginTop: 10 },
+  clSuccessRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   clSuccessText: { fontSize: 14, fontWeight: '700', color: colors.primaryDark },
-  clCoins: { fontSize: 13, color: colors.primary, marginTop: 4 },
+  clCoins: { fontSize: 13, color: colors.primary, marginTop: 5 },
+
+  /* Special instructions */
+  instructionInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    padding: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+    minHeight: 70,
+    textAlignVertical: 'top',
+    marginBottom: 10,
+  },
+  quickTips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  quickChip: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickChipText: { fontSize: 12, color: colors.textSecondary },
+
+  /* Coins */
   coinsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   coinsTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   coinsSub: { fontSize: 13, color: colors.textSecondary, marginTop: 3 },
   coinsSave: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 3 },
+
+  /* Bill */
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
+
+  /* Input fields */
   inputLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600', marginBottom: 5 },
   textInput: {
     borderWidth: 1,
@@ -420,6 +478,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     backgroundColor: '#FAFAFA',
   },
+
+  /* Radio */
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.borderMid, alignItems: 'center', justifyContent: 'center' },
+  radioActive: { borderColor: colors.primary },
+  radioDot: { width: 11, height: 11, borderRadius: 5.5, backgroundColor: colors.primary },
+
+  /* Footer */
   footer: {
     backgroundColor: '#fff',
     paddingHorizontal: spacing.md,

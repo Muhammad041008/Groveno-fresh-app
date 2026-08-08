@@ -41,7 +41,7 @@ export type CategoriesStackParamList = {
 export type CartStackParamList = {
   Cart: undefined;
   ChannelSelection: undefined;
-  HomeDeliveryCheckout: undefined;
+  HomeDeliveryCheckout: { mode: 'home_delivery' | 'cl_order' };
   ExpressPickup: undefined;
   ExpressPickupTracking: {
     orderId: string;
@@ -52,7 +52,7 @@ export type CartStackParamList = {
     hubName: string;
   };
   Payment: {
-    channel: 'home_delivery' | 'express_pickup';
+    channel: 'home_delivery' | 'cl_order' | 'express_pickup';
     total: number;
     orderId?: string;
     orderData?: Record<string, unknown>;

@@ -53,12 +53,12 @@ export default function ChannelSelectionScreen() {
 
   const handleSelect = (channelId: string) => {
     if (channelId === 'home_delivery') {
-      navigation.navigate('HomeDeliveryCheckout');
+      navigation.navigate('HomeDeliveryCheckout', { mode: 'home_delivery' });
     } else if (channelId === 'express_pickup') {
       navigation.navigate('ExpressPickup');
     } else {
-      // CL order: same checkout flow with CL code mandatory
-      navigation.navigate('HomeDeliveryCheckout');
+      // cl_order — distinct CL flow
+      navigation.navigate('HomeDeliveryCheckout', { mode: 'cl_order' });
     }
   };
 

@@ -35,10 +35,17 @@ export default function OrderSuccessScreen() {
     ]).start();
   }, [opacity, scale]);
 
-  const channelLabel = channel === 'home_delivery' ? '🏠 Home Delivery' : '⚡ Express Pickup';
-  const deliveryInfo = channel === 'home_delivery'
-    ? (deliverySlot === 'morning' ? 'Today 8AM – 12PM' : deliverySlot === 'evening' ? 'Today 5PM – 9PM' : 'Arriving in ~30 min')
-    : 'Ready in ~20 minutes';
+  const channelLabel =
+    channel === 'home_delivery' ? '🏠 Home Delivery' :
+    channel === 'cl_order' ? '👥 Order via CL' :
+    '⚡ Express Pickup';
+
+  const deliveryInfo =
+    channel === 'home_delivery'
+      ? 'Delivery as per availability'
+      : channel === 'cl_order'
+      ? (deliverySlot === 'morning' ? 'Morning Slot · 8AM – 12PM' : 'Evening Slot · 5PM – 9PM')
+      : 'Ready in ~20 minutes';
 
   const goHome = () => {
     navigation.getParent()?.navigate('HomeTab');

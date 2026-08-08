@@ -47,6 +47,16 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
+### Iteration 10 (Delivery Flow Separation — Feb 2026)
+**Home Delivery and Order via CL are now distinct, correct flows:**
+- `navigation/types.ts`: `HomeDeliveryCheckout` now requires `{ mode: 'home_delivery' | 'cl_order' }`; `Payment.channel` now accepts `'cl_order'` as a third value.
+- `ChannelSelectionScreen.tsx`: Passes `mode: 'home_delivery'` for home delivery and `mode: 'cl_order'` for CL orders when navigating.
+- `HomeDeliveryCheckoutScreen.tsx`: Completely mode-aware. `home_delivery` → shows address block + "Delivery as per availability" note, hides CL code and time slots. `cl_order` → CL code block at top (required, with validate button), Morning/Evening slot selector, CL info shown on valid code, hides address.
+- `PaymentScreen.tsx`: `cl_order` now treated as home delivery API path; label shows "👥 Order via CL".
+- `OrderSuccessScreen.tsx`: `cl_order` shows slot-specific delivery time; `home_delivery` shows "Delivery as per availability".
+- Express Pickup: unchanged, zero regression.
+- TypeScript: **0 errors** | Bundle: **HTTP 200, 7.4MB**.
+
 ### Iteration 9 (UI/UX Improvement — Feb 2026)
 **Bottom nav, two-panel Categories, compact ProductCard:**
 - `navigation/index.tsx`: Added `CartTabIcon` component (uses `useCart()` for live badge count); Cart tab now visible in bottom nav with item-count badge; Profile tab hidden from bottom bar (still navigable via avatar); TypeScript + bundle verify: 0 errors, HTTP 200.
