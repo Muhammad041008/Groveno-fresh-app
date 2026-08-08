@@ -1,4 +1,5 @@
 import api from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface OrderItem {
   product: string;
@@ -189,12 +190,32 @@ export async function skipRating(orderId: string): Promise<void> {
   await api.post(`/api/orders/${orderId}/skip-rating`);
 }
 
+// Demo Mode sentinel — matches the token set by authService.verifyOtpMock()
+const DEMO_TOKEN = 'demo_jwt_groveno_offline';
+// Demo CL code — only valid when the demo token is present (i.e. Demo Mode is active)
+const DEMO_CL_CODE = 'CLDEMO123';
+
 export async function validateClCode(code: string): Promise<{
   valid: boolean;
   clName?: string;
   society?: string;
   coinsToEarn?: number;
 }> {
+  // Demo Mode guard: CLDEMO123 works ONLY when the demo token is active.
+  // In production the stored token will be a real JWT, so this block is never entered.
+  if (code.toUpperCase() === DEMO_CL_CODE) {
+    const storedToken = await AsyncStorage.getItem('groveno_token');
+    if (storedToken === DEMO_TOKEN) {
+      return {
+        valid: true,
+        clName: 'Demo Community Leader',
+        society: 'Demo Society, Sector 21',
+        coinsToEarn: 15,
+      };
+    }
+    // Reached only in production — fall through to real API validation
+  }
+
   try {
     const res = await api.get(`/api/cl/validate/${code}`);
     return res.data;
