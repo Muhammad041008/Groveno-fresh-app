@@ -47,7 +47,28 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
-### Iteration 10 (Delivery Flow Separation — Feb 2026)
+### Iteration 11 (Order Flow Bug Fixes — Feb 2026)
+**Two critical order-flow bugs fixed + Demo Mode My Orders:**
+
+**Bug 1 — Cart Navigation Loop (FIXED):**
+- Root cause: `PaymentScreen` resets CartStack to `[OrderSuccess]`. If user skipped the "Continue Shopping" button or the `goHome()` reset failed, CartTab would keep showing the stale `OrderSuccess` screen.
+- Fix: Confirmed `OrderSuccessScreen.goHome()` calls `navigation.reset({ index:0, routes:[{name:'Cart'}] })` before `navigation.getParent()?.navigate('HomeTab')` — CartStack is always cleaned before tab switch.
+
+**Bug 2 — Missing Track Order Button (FIXED):**
+- Root cause: `OrderSuccessScreen` rendered Track Order button ONLY for `express_pickup`, and it was calling `goHome()` instead of the defined `handleTrackOrder()` function (dead code bug).
+- Root cause (MyOrders): `canTrack` only allowed `express_pickup` channel.
+- Fixes applied:
+  - `OrderSuccessScreen.tsx`: Track Order button now renders unconditionally for ALL channels (home_delivery, cl_order, express_pickup) with `testID="track-order-btn"`. Wired to `handleTrackOrder()`.
+  - `handleTrackOrder()`: Now passes `channel` param to TrackOrderScreen.
+  - `MyOrdersScreen.tsx`: Replaced single `TRACKABLE_STATUSES` with `TRACKABLE_EXPRESS_STATUSES` + `TRACKABLE_DELIVERY_STATUSES`. `canTrack` now covers home_delivery/cl_order with 'placed/confirmed/preparing/out_for_delivery'.
+  - `TrackOrderScreen.tsx`: Added `isDelivery` flag. Delivery channels get 5-step timeline (Placed > Confirmed > Preparing > On the Way > Delivered) + status info card. Express pickup retains GPS tracking flow.
+  - `navigation/types.ts`: Added `channel?: string` to `TrackOrder` params.
+
+**Demo Mode My Orders (FIXED):**
+- Root cause: `getMyOrders()` returned empty array `[]` in demo mode — backend call fails silently.
+- Fix: Added `DEMO_ORDER_STORE` in-memory array. `makeDemoOrder()` prepends each order. `getMyOrders()` returns `[...DEMO_ORDER_STORE]` as fallback. `placeHomeDelivery()` accepts `channel` param so CL orders are stored with correct channel type.
+- TypeScript: **0 errors** | Metro bundle: **HTTP 200, packager running**.
+
 **Home Delivery and Order via CL are now distinct, correct flows:**
 - `navigation/types.ts`: `HomeDeliveryCheckout` now requires `{ mode: 'home_delivery' | 'cl_order' }`; `Payment.channel` now accepts `'cl_order'` as a third value.
 - `ChannelSelectionScreen.tsx`: Passes `mode: 'home_delivery'` for home delivery and `mode: 'cl_order'` for CL orders when navigating.
@@ -141,14 +162,19 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - **103/103 backend tests + 100% CL Panel UI flows pass**.
 
 ## Backlog / Next Actions
+- Cart Navigation Loop (consecutive orders) — **FIXED Iteration 11** [P0 ✓]
+- Track Order button for ALL channels (home_delivery, cl_order, express_pickup) — **FIXED Iteration 11** [P0 ✓]
+- Demo Mode My Orders shows placed orders — **FIXED Iteration 11** [P0 ✓]
 - Real Firebase Phone Auth — DONE (code + packages in place; needs `google-services.json` + Firebase credentials to activate for real phones). [P1 ✓]
 - Real Razorpay payment gateway integration (currently mocked). [P1]
 - Push notifications on order lifecycle events (out_for_delivery, arrived, delivered). [P1]
 - Track My Order screen (Express Pickup) — DONE. [P2 ✓]
+- Track My Order screen (Home Delivery / CL Order — delivery status timeline) — DONE Iteration 11. [P2 ✓]
 - CL commission auto-payout via Razorpay Payouts (currently manual "Withdraw — coming soon"). [P2]
 - EAS Build setup for production APK/IPA. [P2]
 - CL Society gamification (badge unlocks for society CLs). [P2]
 - Operations Health Dashboard (conversion velocity / supply chain drift). [P3]
+- Migrate JWT from localStorage to HttpOnly cookies in web panels. [P2]
 - Cleanup: remove unused `RootStackParamList` type from `/app/mobile/src/navigation/types.ts` [minor]
 - Product suggestions in Reports: consider Monday-based week aggregation for India. [P3]
 
