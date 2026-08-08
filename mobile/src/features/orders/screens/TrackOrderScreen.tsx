@@ -53,7 +53,9 @@ const STATUS_LABELS: Record<string, string> = {
 export default function TrackOrderScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Route>();
-  const { orderId, orderNumber, items, pickupPointName, pickupPointAddress, status } = route.params;
+  const { orderId, orderNumber, items, pickupPointName, pickupPointAddress, status, channel } = route.params;
+
+  const isDelivery = channel === 'home_delivery' || channel === 'cl_order';
 
   const [phase, setPhase] = useState<Phase>(
     status === 'customer_on_way' || status === 'arrived' ? 'tracking' : 'idle'
@@ -148,15 +150,27 @@ export default function TrackOrderScreen() {
   // ── Render helpers ────────────────────────────────────────────────────────
 
   function renderStatusBar() {
-    const steps = ['Placed', 'Preparing', 'Ready', 'Collected'];
-    const stepMap: Record<string, number> = {
+    // Delivery channels use a 5-step timeline; express pickup uses a 4-step one
+    const steps = isDelivery
+      ? ['Placed', 'Confirmed', 'Preparing', 'On the Way', 'Delivered']
+      : ['Placed', 'Preparing', 'Ready', 'Collected'];
+    const expressStepMap: Record<string, number> = {
       confirmed: 1,
       customer_on_way: 1,
       ready_for_pickup: 2,
       arrived: 2,
       collected: 3,
     };
-    const active = stepMap[orderStatus] ?? 0;
+    const deliveryStepMap: Record<string, number> = {
+      placed: 0,
+      confirmed: 1,
+      preparing: 2,
+      out_for_delivery: 3,
+      delivered: 4,
+    };
+    const active = isDelivery
+      ? (deliveryStepMap[orderStatus] ?? 0)
+      : (expressStepMap[orderStatus] ?? 0);
     return (
       <View style={styles.statusBar}>
         {steps.map((s, i) => (
@@ -172,6 +186,34 @@ export default function TrackOrderScreen() {
             )}
           </React.Fragment>
         ))}
+      </View>
+    );
+  }
+
+  function renderDeliveryPhase() {
+    const INFO: Record<string, { icon: string; title: string; sub: string }> = {
+      placed:           { icon: '📋', title: 'Order Placed!',         sub: "We've received your order and it's being confirmed." },
+      confirmed:        { icon: '✅', title: 'Order Confirmed',        sub: 'Your order is confirmed and is being prepared.' },
+      preparing:        { icon: '🧑‍🍳', title: 'Preparing Your Order', sub: 'Our team is packing your fresh groceries carefully.' },
+      out_for_delivery: { icon: '🚴', title: 'Out for Delivery',       sub: 'Your order is on its way to you!' },
+      delivered:        { icon: '🎉', title: 'Order Delivered!',        sub: 'Enjoy your fresh groceries!' },
+    };
+    const info = INFO[orderStatus] ?? INFO.confirmed;
+    return (
+      <View style={styles.phaseCard}>
+        <Text style={styles.phaseIcon}>{info.icon}</Text>
+        <Text style={styles.phaseTitle}>{info.title}</Text>
+        <Text style={styles.phaseSub}>{info.sub}</Text>
+        <View style={styles.hubCard}>
+          <Text style={styles.hubName}>
+            {channel === 'cl_order' ? '👥 Order via Community Leader' : '🏠 Home Delivery'}
+          </Text>
+          <Text style={styles.hubAddr}>
+            {channel === 'cl_order'
+              ? 'Your CL will coordinate delivery to your address'
+              : 'Delivery to your registered address'}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -285,8 +327,10 @@ export default function TrackOrderScreen() {
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <Text style={styles.orderNum}>{orderNumber}</Text>
-            <View style={styles.channelBadge}>
-              <Text style={styles.channelText}>⚡ Express</Text>
+            <View style={[styles.channelBadge, isDelivery && styles.channelBadgeDelivery]}>
+              <Text style={[styles.channelText, isDelivery && styles.channelTextDelivery]}>
+                {channel === 'home_delivery' ? '🏠 Home' : channel === 'cl_order' ? '👥 CL Order' : '⚡ Express'}
+              </Text>
             </View>
           </View>
           <View style={styles.itemsList}>
@@ -301,13 +345,19 @@ export default function TrackOrderScreen() {
           </View>
         </View>
 
-        {/* Progress bar */}
+        {/* Progress bar — express uses pickup steps; delivery uses delivery steps */}
         {renderStatusBar()}
 
         {/* Phase-specific content */}
-        {phase === 'idle' && renderIdlePhase()}
-        {(phase === 'tracking' || phase === 'nearby') && renderTrackingPhase()}
-        {phase === 'arrived' && renderArrivedPhase()}
+        {isDelivery ? (
+          renderDeliveryPhase()
+        ) : (
+          <>
+            {phase === 'idle' && renderIdlePhase()}
+            {(phase === 'tracking' || phase === 'nearby') && renderTrackingPhase()}
+            {phase === 'arrived' && renderArrivedPhase()}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -342,6 +392,8 @@ const styles = StyleSheet.create({
   orderNum: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
   channelBadge: { backgroundColor: '#E3F2FD', borderRadius: borderRadius.full, paddingHorizontal: 10, paddingVertical: 4 },
   channelText: { fontSize: 11, fontWeight: '700', color: '#1565C0' },
+  channelBadgeDelivery: { backgroundColor: '#E8F5E9' },
+  channelTextDelivery: { color: '#14532D' },
   itemsList: { marginTop: 4 },
   itemText: { fontSize: 13, color: colors.textSecondary, marginBottom: 2 },
   itemMore: { fontSize: 12, color: colors.textLight, fontStyle: 'italic', marginTop: 2 },

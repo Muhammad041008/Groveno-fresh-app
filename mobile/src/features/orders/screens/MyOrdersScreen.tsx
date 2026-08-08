@@ -35,7 +35,9 @@ const CHANNEL_BADGES: Record<string, { label: string; color: string }> = {
 };
 
 /** Statuses for which an express pickup order can still be tracked. */
-const TRACKABLE_STATUSES = new Set(['confirmed', 'customer_on_way', 'ready_for_pickup', 'arrived']);
+const TRACKABLE_EXPRESS_STATUSES = new Set(['confirmed', 'customer_on_way', 'ready_for_pickup', 'arrived']);
+/** Statuses for which a home/CL delivery order can be tracked. */
+const TRACKABLE_DELIVERY_STATUSES = new Set(['placed', 'confirmed', 'preparing', 'out_for_delivery']);
 
 export default function MyOrdersScreen() {
   const navigation = useNavigation<any>();
@@ -91,7 +93,8 @@ export default function MyOrdersScreen() {
             const badge = CHANNEL_BADGES[item.channel];
             const statusColor = STATUS_COLORS[item.status] ?? colors.textSecondary;
             const canTrack =
-              item.channel === 'express_pickup' && TRACKABLE_STATUSES.has(item.status);
+              (item.channel === 'express_pickup' && TRACKABLE_EXPRESS_STATUSES.has(item.status)) ||
+              ((item.channel === 'home_delivery' || item.channel === 'cl_order') && TRACKABLE_DELIVERY_STATUSES.has(item.status));
 
             return (
               <View style={styles.card}>
@@ -133,6 +136,7 @@ export default function MyOrdersScreen() {
                     {canTrack && (
                       <TouchableOpacity
                         style={styles.trackBtn}
+                        testID={`track-order-btn-${item._id}`}
                         onPress={() =>
                           navigation.navigate('TrackOrder', {
                             orderId: item._id,
@@ -141,9 +145,13 @@ export default function MyOrdersScreen() {
                               name: i.name,
                               qty: (i as any).quantity ?? i.qty ?? 1,
                             })),
-                            pickupPointName: (item as any).pickupPointName ?? 'Pickup Hub',
+                            pickupPointName:
+                              item.channel === 'express_pickup'
+                                ? ((item as any).pickupPointName ?? 'Pickup Hub')
+                                : 'Groveno Delivery',
                             pickupPointAddress: (item as any).pickupPointAddress ?? '',
                             status: item.status,
+                            channel: item.channel,
                           })
                         }
                       >

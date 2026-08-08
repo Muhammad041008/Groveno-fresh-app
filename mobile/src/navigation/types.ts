@@ -29,6 +29,7 @@ export type OrderStackParamList = {
     pickupPointName: string;
     pickupPointAddress?: string;
     status: string;
+    channel?: string;
   };
 };
 

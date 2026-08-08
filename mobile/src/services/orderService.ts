@@ -88,21 +88,24 @@ export async function getPickupPoints(): Promise<PickupPoint[]> {
   }
 }
 
+// In-memory demo order store — survives tab switches within one app session
+const DEMO_ORDER_STORE: Order[] = [];
+
 // Generates a realistic demo order when the backend is offline
 function makeDemoOrder(
-  channel: 'home_delivery' | 'express_pickup',
+  channel: 'home_delivery' | 'express_pickup' | 'cl_order',
   items: Array<{ product: string; name: string; price: number; qty: number; total: number }>,
   total: number
 ): Order {
   const suffix = Date.now().toString().slice(-6);
-  return {
+  const order: Order = {
     _id: `demo_order_${suffix}`,
     orderNumber: `GRV${suffix}`,
     channel,
     status: 'confirmed',
     items: items.map((i) => ({ ...i, emoji: '🛒' })),
     subtotal: total,
-    deliveryFee: channel === 'home_delivery' ? (total >= 199 ? 0 : 30) : 30,
+    deliveryFee: channel === 'home_delivery' || channel === 'cl_order' ? (total >= 199 ? 0 : 30) : 30,
     packagingFee: 5,
     discount: channel === 'express_pickup' ? Math.round(total * 0.05) : 0,
     total,
@@ -110,6 +113,9 @@ function makeDemoOrder(
     paymentMethod: 'cod',
     createdAt: new Date().toISOString(),
   };
+  // Prepend so newest order appears first
+  DEMO_ORDER_STORE.unshift(order);
+  return order;
 }
 
 export async function placeHomeDelivery(data: {
@@ -120,12 +126,17 @@ export async function placeHomeDelivery(data: {
   coinsToUse?: number;
   paymentMethod: string;
   specialInstructions?: string;
+  channel?: 'home_delivery' | 'cl_order';
 }): Promise<Order> {
   try {
     const res = await api.post('/api/orders/home-delivery', data);
     return res.data.order ?? res.data;
   } catch {
-    return makeDemoOrder('home_delivery', data.items, data.items.reduce((s, i) => s + i.total, 0));
+    return makeDemoOrder(
+      data.channel ?? 'home_delivery',
+      data.items,
+      data.items.reduce((s, i) => s + i.total, 0)
+    );
   }
 }
 
@@ -145,9 +156,11 @@ export async function placeExpressPickup(data: {
 export async function getMyOrders(page = 1, limit = 20): Promise<Order[]> {
   try {
     const res = await api.get('/api/orders', { params: { page, limit } });
-    return res.data.orders ?? res.data ?? [];
+    const serverOrders = res.data.orders ?? res.data ?? [];
+    // In demo mode the backend is offline — fall back to in-session demo orders
+    return serverOrders.length > 0 ? serverOrders : [...DEMO_ORDER_STORE];
   } catch {
-    return [];
+    return [...DEMO_ORDER_STORE];
   }
 }
 

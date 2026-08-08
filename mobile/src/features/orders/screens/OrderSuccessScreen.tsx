@@ -48,7 +48,31 @@ export default function OrderSuccessScreen() {
       : 'Ready in ~20 minutes';
 
   const goHome = () => {
+    // Reset the CartStack back to its root (Cart screen).
+    // Without this, CartTab would still show OrderSuccess next time the user taps it,
+    // because PaymentScreen already reset the stack to [OrderSuccess].
+    navigation.reset({ index: 0, routes: [{ name: 'Cart' }] });
+    // Switch tabs to Home
     navigation.getParent()?.navigate('HomeTab');
+  };
+
+  const handleTrackOrder = () => {
+    // Reset CartStack first so the Cart tab is clean for the next order
+    navigation.reset({ index: 0, routes: [{ name: 'Cart' }] });
+    // Navigate to the existing TrackOrderScreen in the Orders tab
+    navigation.getParent()?.navigate('OrderAgainTab', {
+      screen: 'TrackOrder',
+      params: {
+        orderId,
+        orderNumber,
+        items: [],
+        pickupPointName:
+          channel === 'express_pickup' ? 'Express Pickup Hub' : 'Groveno Delivery',
+        pickupPointAddress: '',
+        status: 'confirmed',
+        channel,
+      },
+    });
   };
 
   return (
@@ -90,27 +114,23 @@ export default function OrderSuccessScreen() {
           </Text>
         </View>
 
-        {/* Buttons */}
-        {channel === 'express_pickup' && (
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={() => {
-              // Navigate to tracking - this would need the hub info
-              // For now, go home
-              goHome();
-            }}
-          >
-            <Text style={styles.primaryBtnText}>TRACK ORDER</Text>
-          </TouchableOpacity>
-        )}
+        {/* Track Order — visible for all delivery channels */}
+        <TouchableOpacity
+          style={styles.trackBtn}
+          onPress={handleTrackOrder}
+          testID="track-order-btn"
+          activeOpacity={0.88}
+        >
+          <Text style={styles.trackBtnText}>TRACK ORDER</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.primaryBtn, channel !== 'express_pickup' && styles.fullWidth]}
+          style={styles.primaryBtn}
           onPress={goHome}
+          testID="continue-shopping-btn"
+          activeOpacity={0.88}
         >
-          <Text style={styles.primaryBtnText}>
-            {channel === 'express_pickup' ? 'Back to Home' : 'CONTINUE SHOPPING'}
-          </Text>
+          <Text style={styles.primaryBtnText}>CONTINUE SHOPPING</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -174,4 +194,14 @@ const styles = StyleSheet.create({
   },
   fullWidth: { width: '100%' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+  trackBtn: {
+    width: '100%',
+    backgroundColor: '#E8F5E9',
+    borderRadius: borderRadius.md,
+    paddingVertical: 15,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  trackBtnText: { color: colors.primary, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
 });

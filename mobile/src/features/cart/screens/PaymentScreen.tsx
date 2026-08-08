@@ -46,6 +46,7 @@ export default function PaymentScreen() {
           coinsToUse: data.coinsToUse,
           paymentMethod: selectedMethod,
           specialInstructions: data.specialInstructions,
+          channel: channel as 'home_delivery' | 'cl_order',
         });
       } else {
         order = await orderService.placeExpressPickup({
