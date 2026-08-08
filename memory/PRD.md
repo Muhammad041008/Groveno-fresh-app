@@ -47,7 +47,17 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
-### Iteration 11 (Order Flow Bug Fixes — Feb 2026)
+### Iteration 12 (Demo CL Code — Feb 2026)
+**Root cause:** `validateClCode()` in `orderService.ts` made an API call to `/api/cl/validate/${code}`. In Demo Mode (no backend), the call fails silently → `{ valid: false }` → CL order flow was permanently blocked.
+
+**Fix (single-file change — `orderService.ts` only):**
+- Added `import AsyncStorage from '@react-native-async-storage/async-storage'`
+- Added `DEMO_TOKEN = 'demo_jwt_groveno_offline'` (matches token set by `authService.verifyOtpMock`)
+- Added `DEMO_CL_CODE = 'CLDEMO123'`
+- `validateClCode()` now: if code is `CLDEMO123` AND `AsyncStorage.getItem('groveno_token') === DEMO_TOKEN` → returns `{ valid: true, clName: 'Demo Community Leader', society: 'Demo Society, Sector 21', coinsToEarn: 15 }`
+- In production (real JWT in storage), `CLDEMO123` falls through to the real API call → still correctly invalid
+- TypeScript: **0 errors** | Metro bundle: **HTTP 200**
+
 **Two critical order-flow bugs fixed + Demo Mode My Orders:**
 
 **Bug 1 — Cart Navigation Loop (FIXED):**
