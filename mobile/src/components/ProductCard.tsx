@@ -22,6 +22,16 @@ export default function ProductCard({ product, onPress }: ProductCardProps) {
       ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
       : 0;
 
+  // Resolve category to a plain string ID regardless of whether the backend
+  // has populated it as an object or left it as a raw ObjectId string.
+  const catRaw = product.category;
+  const category: string | undefined =
+    typeof catRaw === 'string'
+      ? catRaw
+      : catRaw && typeof (catRaw as any)._id !== 'undefined'
+      ? String((catRaw as any)._id)
+      : undefined;
+
   const cartProduct: Omit<CartItem, 'qty'> = {
     id: product._id,
     name: product.name,
@@ -30,6 +40,7 @@ export default function ProductCard({ product, onPress }: ProductCardProps) {
     emoji: product.emoji,
     imageUrl: product.imageUrl,
     weight: product.weight,
+    category,
   };
 
   return (

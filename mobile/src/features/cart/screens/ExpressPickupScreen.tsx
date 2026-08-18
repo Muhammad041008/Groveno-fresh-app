@@ -63,7 +63,7 @@ export default function ExpressPickupScreen() {
       channel: 'express_pickup',
       total: grandTotal,
       orderData: {
-        items: items.map((i) => ({ product: i.id, name: i.name, price: i.price, qty: i.qty, total: i.price * i.qty })),
+        items: items.map((i) => ({ productId: i.id, quantity: i.qty })),
         pickupPointId: selectedPoint._id,
         pickupPoint: selectedPoint,
         timeSlot: selectedTime,

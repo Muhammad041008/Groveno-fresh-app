@@ -47,12 +47,14 @@ export default function PaymentScreen() {
           paymentMethod: selectedMethod,
           specialInstructions: data.specialInstructions,
           channel: channel as 'home_delivery' | 'cl_order',
+          _demoTotal: total,
         });
       } else {
         order = await orderService.placeExpressPickup({
           items: data.items,
           pickupPointId: data.pickupPointId,
           paymentMethod: selectedMethod,
+          _demoTotal: total,
         });
       }
 
@@ -68,7 +70,8 @@ export default function PaymentScreen() {
               orderNumber: order.orderNumber,
               channel,
               coinsEarned: order.coinsEarned ?? 0,
-              total: order.total ?? total,
+              // Use || (not ??) so that a demo order with total:0 still shows the cart total
+              total: order.total || total,
               deliverySlot: order.deliverySlot,
               paymentMethod: selectedMethod,
             },

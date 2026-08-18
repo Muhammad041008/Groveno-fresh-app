@@ -44,7 +44,7 @@ export default function HomeDeliveryCheckoutScreen() {
   const { items, totalPrice } = useCart();
 
   const [slot, setSlot] = useState('morning');
-  const [address, setAddress] = useState({ society: '', tower: '', flat: '' });
+  const [address, setAddress] = useState({ society: '', tower: '', flat: '', pincode: '' });
   const [clCode, setClCode] = useState('');
   const [clInfo, setClInfo] = useState<{ valid: boolean; clName?: string; coinsToEarn?: number } | null>(null);
   const [validatingCL, setValidatingCL] = useState(false);
@@ -89,27 +89,32 @@ export default function HomeDeliveryCheckoutScreen() {
         return;
       }
     } else {
-      if (!address.society.trim() || !address.flat.trim()) {
-        Alert.alert('Address Required', 'Please fill in your society name and flat number.');
+      if (!address.society.trim() || !address.flat.trim() || !address.pincode.trim()) {
+        Alert.alert('Address Required', 'Please fill in your society name, flat number and pincode.');
         return;
       }
     }
 
     setPlacing(true);
     try {
+      // Backend expandItems expects { productId, quantity }
       const orderItems = items.map((i) => ({
-        product: i.id,
-        name: i.name,
-        price: i.price,
-        qty: i.qty,
-        total: i.price * i.qty,
+        productId: i.id,
+        quantity: i.qty,
       }));
       navigation.navigate('Payment', {
         channel: mode,
         total: grandTotal,
         orderData: {
           items: orderItems,
-          address: isCL ? undefined : address,
+          // Backend homeDelivery validates address.line1 and address.pincode
+          address: isCL ? undefined : {
+            line1: [address.flat, address.tower, address.society].filter(Boolean).join(', '),
+            pincode: address.pincode,
+            society: address.society,
+            tower: address.tower,
+            flat: address.flat,
+          },
           deliverySlot: isCL ? slot : 'standard',
           clCode: isCL && clInfo?.valid ? clCode : undefined,
           coinsToUse: coinsDiscount,
@@ -226,6 +231,14 @@ export default function HomeDeliveryCheckoutScreen() {
                 onChangeText={(t) => setAddress((a) => ({ ...a, flat: t }))}
                 placeholder="e.g. Flat 403"
               />
+              <InputField
+                label="Pincode *"
+                value={address.pincode}
+                onChangeText={(t) => setAddress((a) => ({ ...a, pincode: t }))}
+                placeholder="e.g. 201301"
+                keyboardType="number-pad"
+                maxLength={6}
+              />
             </View>
             <View style={styles.deliveryNote}>
               <Ionicons name="information-circle-outline" size={15} color={colors.textSecondary} />
@@ -317,8 +330,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <Text style={styles.sectionTitle}>{children as string}</Text>;
 }
 
-function InputField({ label, value, onChangeText, placeholder }: {
+function InputField({ label, value, onChangeText, placeholder, keyboardType, maxLength }: {
   label: string; value: string; onChangeText: (t: string) => void; placeholder: string;
+  keyboardType?: any; maxLength?: number;
 }) {
   return (
     <View style={{ marginBottom: 12 }}>
@@ -329,6 +343,8 @@ function InputField({ label, value, onChangeText, placeholder }: {
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.textLight}
+        keyboardType={keyboardType}
+        maxLength={maxLength}
       />
     </View>
   );

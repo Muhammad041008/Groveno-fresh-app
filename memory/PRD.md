@@ -47,7 +47,43 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
-### Iteration 12 (Demo CL Code — Feb 2026)
+### Iteration 13 — Bug Fixes: Token Auth + Category + Payload (Aug 2026)
+
+**Bug 1 — Axios response interceptor wiping demo token (FIXED):**
+- Root cause: `api.ts` response interceptor called `AsyncStorage.removeItem('groveno_token')` on ANY 401.
+  In Demo Mode, `getMe()` returns 401 (demo token is not a real JWT) → token wiped → subsequent API calls
+  had no Authorization header → backend returned "No token provided".
+- Fix: Made the response interceptor async; it now reads the stored token first and skips removal if it equals
+  the demo sentinel `demo_jwt_groveno_offline`. Real JWTs are still wiped on 401.
+
+**Bug 2 — Cart category data loss (FIXED):**
+- Root cause: `CartItem` interface had no `category` field. `ProductCard.tsx` built `cartProduct` without
+  including category, so it was dropped the moment a product was added to the cart.
+- Fix: Added `category?: string` to `CartItem`. `ProductCard.tsx` resolves `product.category` (which can be
+  a populated object `{_id, name, slug}` or a raw string ID) to a plain string ID before storing in cart.
+
+**Bug 3 — Order payload field mismatch (FIXED):**
+- Root cause: `HomeDeliveryCheckoutScreen` was sending items as `{product, name, price, qty, total}`.
+  Backend `expandItems()` expects `{productId, quantity}`.
+- Fix: Changed checkout mapping to `{productId: i.id, quantity: i.qty}` for both Home Delivery and Express Pickup.
+
+**Bug 4 — Address format mismatch (FIXED):**
+- Root cause: Checkout sent `{society, tower, flat}` but backend validates `address.line1 && address.pincode`.
+- Fix: Added `pincode` field to address state + form. Address now sent as
+  `{line1: flat+tower+society, pincode, society, tower, flat}` to satisfy backend AND retain granular data.
+
+**Bug 5 — Demo fallback hiding production errors (FIXED):**
+- Root cause: `placeHomeDelivery/placeExpressPickup` caught ALL errors and returned a fake order, masking
+  real backend failures in production.
+- Fix: Fallback now checks if token === DEMO_SENTINEL. In Demo Mode → offline order. In production → throws
+  so the real error surfaces in the Payment Failed alert.
+
+**TypeScript: 0 errors | All 3 order channels verified in MongoDB via curl:**
+- Home Delivery GRV-2026-00001 ✅
+- Express Pickup GRV-2026-00002 ✅
+- CL-attributed Order GRV-2026-00003 (CL12345 preserved, commission ₹2.25) ✅
+- Admin Panel /orders shows all 3 orders ✅
+- CL Panel /cl/orders shows GRV-2026-00003 ✅
 **Root cause:** `validateClCode()` in `orderService.ts` made an API call to `/api/cl/validate/${code}`. In Demo Mode (no backend), the call fails silently → `{ valid: false }` → CL order flow was permanently blocked.
 
 **Fix (single-file change — `orderService.ts` only):**
@@ -175,6 +211,10 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Cart Navigation Loop (consecutive orders) — **FIXED Iteration 11** [P0 ✓]
 - Track Order button for ALL channels (home_delivery, cl_order, express_pickup) — **FIXED Iteration 11** [P0 ✓]
 - Demo Mode My Orders shows placed orders — **FIXED Iteration 11** [P0 ✓]
+- **Order Token Auth bug (Axios response interceptor wiping demo token)** — **FIXED Iteration 13** [P0 ✓]
+- **Cart Category data loss (CartItem missing category field)** — **FIXED Iteration 13** [P0 ✓]
+- **Order payload field mismatch (product→productId, qty→quantity)** — **FIXED Iteration 13** [P0 ✓]
+- **Address format mismatch (society/flat→line1+pincode)** — **FIXED Iteration 13** [P0 ✓]
 - Real Firebase Phone Auth — DONE (code + packages in place; needs `google-services.json` + Firebase credentials to activate for real phones). [P1 ✓]
 - Real Razorpay payment gateway integration (currently mocked). [P1]
 - Push notifications on order lifecycle events (out_for_delivery, arrived, delivered). [P1]

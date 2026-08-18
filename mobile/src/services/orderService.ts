@@ -92,10 +92,12 @@ export async function getPickupPoints(): Promise<PickupPoint[]> {
 // In-memory demo order store — survives tab switches within one app session
 const DEMO_ORDER_STORE: Order[] = [];
 
-// Generates a realistic demo order when the backend is offline
+/**
+ * Generates a lightweight offline order for Demo Mode only.
+ * total is passed in from the caller so My Orders / Order Success show the right amount.
+ */
 function makeDemoOrder(
   channel: 'home_delivery' | 'express_pickup' | 'cl_order',
-  items: Array<{ product: string; name: string; price: number; qty: number; total: number }>,
   total: number
 ): Order {
   const suffix = Date.now().toString().slice(-6);
@@ -104,7 +106,7 @@ function makeDemoOrder(
     orderNumber: `GRV${suffix}`,
     channel,
     status: 'confirmed',
-    items: items.map((i) => ({ ...i, emoji: '🛒' })),
+    items: [],
     subtotal: total,
     deliveryFee: channel === 'home_delivery' || channel === 'cl_order' ? (total >= 199 ? 0 : 30) : 30,
     packagingFee: 5,
@@ -114,43 +116,71 @@ function makeDemoOrder(
     paymentMethod: 'cod',
     createdAt: new Date().toISOString(),
   };
-  // Prepend so newest order appears first
   DEMO_ORDER_STORE.unshift(order);
   return order;
 }
 
+/**
+ * Places a Home Delivery or CL order.
+ * Payload matches the backend expandItems contract: items need productId + quantity.
+ * In Demo Mode (demo_jwt_groveno_offline token), falls back to an offline order.
+ * In production, propagates errors so they surface in the UI.
+ */
 export async function placeHomeDelivery(data: {
-  items: Array<{ product: string; name: string; price: number; qty: number; total: number }>;
-  address: { society: string; tower: string; flat: string; instructions?: string };
+  items: Array<{ productId: string; quantity: number }>;
+  address?: {
+    line1: string;
+    pincode: string;
+    society?: string;
+    tower?: string;
+    flat?: string;
+    instructions?: string;
+  };
   deliverySlot: string;
   clCode?: string;
   coinsToUse?: number;
   paymentMethod: string;
   specialInstructions?: string;
   channel?: 'home_delivery' | 'cl_order';
+  /** Grand total from the checkout screen; used only in Demo Mode fallback. */
+  _demoTotal?: number;
 }): Promise<Order> {
   try {
     const res = await api.post('/api/orders/home-delivery', data);
     return res.data.order ?? res.data;
-  } catch {
-    return makeDemoOrder(
-      data.channel ?? 'home_delivery',
-      data.items,
-      data.items.reduce((s, i) => s + i.total, 0)
-    );
+  } catch (err) {
+    const tok = await AsyncStorage.getItem('groveno_token');
+    if (tok === DEMO_TOKEN) {
+      console.warn('[Demo] placeHomeDelivery: backend unreachable — returning offline demo order');
+      return makeDemoOrder(data.channel ?? 'home_delivery', data._demoTotal ?? 0);
+    }
+    // Production: surface the real error so it appears in Payment Failed alert
+    console.error('[orderService] placeHomeDelivery failed:', (err as any)?.response?.data ?? err);
+    throw err;
   }
 }
 
+/**
+ * Places an Express Pickup order.
+ * Payload matches the backend expandItems contract: items need productId + quantity.
+ */
 export async function placeExpressPickup(data: {
-  items: Array<{ product: string; name: string; price: number; qty: number; total: number }>;
+  items: Array<{ productId: string; quantity: number }>;
   pickupPointId: string;
   paymentMethod: string;
+  _demoTotal?: number;
 }): Promise<Order> {
   try {
     const res = await api.post('/api/orders/express-pickup', data);
     return res.data.order ?? res.data;
-  } catch {
-    return makeDemoOrder('express_pickup', data.items, data.items.reduce((s, i) => s + i.total, 0));
+  } catch (err) {
+    const tok = await AsyncStorage.getItem('groveno_token');
+    if (tok === DEMO_TOKEN) {
+      console.warn('[Demo] placeExpressPickup: backend unreachable — returning offline demo order');
+      return makeDemoOrder('express_pickup', data._demoTotal ?? 0);
+    }
+    console.error('[orderService] placeExpressPickup failed:', (err as any)?.response?.data ?? err);
+    throw err;
   }
 }
 

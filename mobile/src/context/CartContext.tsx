@@ -8,6 +8,8 @@ export interface CartItem {
   emoji: string;
   imageUrl?: string;
   weight: string;
+  /** category ID string; preserved from the backend Product document */
+  category?: string;
   qty: number;
 }
 
