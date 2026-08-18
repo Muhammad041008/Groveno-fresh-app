@@ -11,47 +11,70 @@ export interface User {
   referralCode?: string;
 }
 
-// Demo-mode constants — intentionally hardcoded, no env required
+// Demo-mode constants
 const DEMO_PHONE_RAW = '1234567890';
 const DEMO_PHONE_E164 = '+911234567890';
 const DEMO_OTP = '1234';
+// Offline sentinel — used ONLY when the backend is genuinely unreachable
+const DEMO_TOKEN_OFFLINE = 'demo_jwt_groveno_offline';
 
 export async function sendOtp(phone: string): Promise<void> {
   await api.post('/api/auth/send-otp', { phone });
 }
 
 /**
- * Demo / offline path.
- * NEVER calls the backend — works with no internet, no .env, no MongoDB.
- * Accepted credentials: phone 1234567890 (or +911234567890), OTP 1234.
- * Any other combination throws a user-friendly error.
+ * Verifies OTP for the demo phone (+911234567890 / OTP 1234).
+ *
+ * Priority order:
+ *  1. Calls the real backend POST /api/auth/verify-otp — backend has native support for
+ *     these demo credentials and will issue a genuine customer JWT.
+ *  2. Falls back to the offline sentinel ONLY when the backend is unreachable
+ *     (network error / timeout — Axios sets no .response in that case).
+ *     This keeps Demo Mode working without internet while ensuring that when
+ *     the backend IS reachable the mobile stores a verifiable JWT.
+ *
+ * If credentials are not the demo combination, throws immediately.
+ * Does NOT log the actual token value.
  */
 export async function verifyOtpMock(
   phone: string,
   otp: string
 ): Promise<{ token: string; user: User }> {
-  const isDemo =
-    (phone === DEMO_PHONE_RAW || phone === DEMO_PHONE_E164) &&
-    otp === DEMO_OTP;
+  const normalised = phone.startsWith('+') ? phone : `+91${phone}`;
+  const isDemo = normalised === DEMO_PHONE_E164 && otp === DEMO_OTP;
 
   if (!isDemo) {
     throw new Error('Demo Mode: use phone 1234567890 with OTP 1234.');
   }
 
-  const demoToken = 'demo_jwt_groveno_offline';
-  const demoUser: User = {
-    _id: 'demo_user_001',
-    name: 'Demo User',
-    phone: DEMO_PHONE_E164,
-    email: 'demo@groveno.com',
-    walletBalance: 250,
-    coins: 120,
-    referralCode: 'DEMO123',
-  };
-
-  await AsyncStorage.setItem('groveno_token', demoToken);
-  await AsyncStorage.setItem('groveno_user', JSON.stringify(demoUser));
-  return { token: demoToken, user: demoUser };
+  try {
+    // Call the real backend — it natively accepts DEMO_PHONE_E164 + DEMO_OTP
+    const res = await api.post('/api/auth/verify-otp', { phone: normalised, otp });
+    const { token, user } = res.data as { token: string; user: User };
+    await AsyncStorage.setItem('groveno_token', token);
+    await AsyncStorage.setItem('groveno_user', JSON.stringify(user));
+    console.log('[authService] verifyOtpMock: real backend JWT stored for demo user');
+    return { token, user };
+  } catch (err: any) {
+    // Only fall back to offline sentinel when there is NO HTTP response (network/timeout).
+    // If the backend returned a 4xx/5xx, propagate that error so it surfaces in the UI.
+    if (err?.response) {
+      throw err;
+    }
+    console.warn('[authService] verifyOtpMock: backend unreachable — using offline demo sentinel');
+    const demoUser: User = {
+      _id: 'demo_user_001',
+      name: 'Demo User',
+      phone: DEMO_PHONE_E164,
+      email: 'demo@groveno.com',
+      walletBalance: 250,
+      coins: 120,
+      referralCode: 'DEMO123',
+    };
+    await AsyncStorage.setItem('groveno_token', DEMO_TOKEN_OFFLINE);
+    await AsyncStorage.setItem('groveno_user', JSON.stringify(demoUser));
+    return { token: DEMO_TOKEN_OFFLINE, user: demoUser };
+  }
 }
 
 /**

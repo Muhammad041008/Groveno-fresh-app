@@ -11,6 +11,10 @@ const OrderItemSchema = new mongoose.Schema({
   mrp: Number,
   quantity: { type: Number, default: 1 },
   subtotal: Number,
+  // Category denormalised from Product at order-creation time so it survives
+  // product document edits and provides fast filtering without joins.
+  categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
+  categoryName: { type: String, default: '' },
 }, { _id: true });
 
 const RatingEntrySchema = new mongoose.Schema({

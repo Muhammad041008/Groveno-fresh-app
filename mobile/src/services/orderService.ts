@@ -1,6 +1,13 @@
 import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Demo Mode sentinel — matches the offline token set by authService.verifyOtpMock()
+// when the backend is unreachable. Declared at the top so all functions below can
+// reference it without hitting the temporal dead zone.
+const DEMO_TOKEN = 'demo_jwt_groveno_offline';
+// Demo CL code — only valid when the demo sentinel token is active
+const DEMO_CL_CODE = 'CLDEMO123';
+
 export interface OrderItem {
   product: string;
   name: string;
@@ -187,11 +194,17 @@ export async function placeExpressPickup(data: {
 export async function getMyOrders(page = 1, limit = 20): Promise<Order[]> {
   try {
     const res = await api.get('/api/orders', { params: { page, limit } });
-    const serverOrders = res.data.orders ?? res.data ?? [];
-    // In demo mode the backend is offline — fall back to in-session demo orders
-    return serverOrders.length > 0 ? serverOrders : [...DEMO_ORDER_STORE];
-  } catch {
-    return [...DEMO_ORDER_STORE];
+    // Real backend response — return as-is (may be empty array for a new user)
+    return res.data.orders ?? res.data ?? [];
+  } catch (err) {
+    const tok = await AsyncStorage.getItem('groveno_token');
+    if (tok === DEMO_TOKEN) {
+      // Demo Mode (backend unreachable) — return in-session demo orders
+      return [...DEMO_ORDER_STORE];
+    }
+    // Production: surface the API error; do NOT return fake orders
+    console.error('[orderService] getMyOrders failed:', (err as any)?.response?.data ?? err);
+    throw err;
   }
 }
 
@@ -220,10 +233,7 @@ export async function skipRating(orderId: string): Promise<void> {
   await api.post(`/api/orders/${orderId}/skip-rating`);
 }
 
-// Demo Mode sentinel — matches the token set by authService.verifyOtpMock()
-const DEMO_TOKEN = 'demo_jwt_groveno_offline';
-// Demo CL code — only valid when the demo token is present (i.e. Demo Mode is active)
-const DEMO_CL_CODE = 'CLDEMO123';
+// Demo Mode sentinel and CL code are declared at the top of this file.
 
 export async function validateClCode(code: string): Promise<{
   valid: boolean;

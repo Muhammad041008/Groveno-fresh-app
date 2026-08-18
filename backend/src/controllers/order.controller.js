@@ -62,6 +62,10 @@ async function expandItems(rawItems) {
       mrp: variant.mrp,
       quantity: qty,
       subtotal,
+      // Denormalise category from the trusted Product document.
+      // p.category is the ObjectId; p.categoryName is the string stored on the Product.
+      categoryId: p.category ?? null,
+      categoryName: p.categoryName || '',
     });
   }
   return { items, itemsTotal };
