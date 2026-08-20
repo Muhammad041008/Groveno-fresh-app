@@ -22,6 +22,42 @@ export async function sendOtp(phone: string): Promise<void> {
   await api.post('/api/auth/send-otp', { phone });
 }
 
+
+/**
+ * Validates that the currently stored token is still accepted by the backend.
+ * Called by AuthContext on every app startup to catch stale/expired JWTs.
+ *
+ * - Demo sentinel → always valid (offline demo mode).
+ * - No token       → invalid.
+ * - Real JWT + 200  → valid.
+ * - Real JWT + 401  → invalid (JWT expired/revoked); token is cleared.
+ * - Real JWT + network error → treated as valid (user may be offline).
+ */
+export async function validateToken(): Promise<boolean> {
+  const tok = await AsyncStorage.getItem('groveno_token');
+  if (!tok) return false;
+  if (tok === DEMO_TOKEN_OFFLINE) {
+    console.log('[AUTH_DEBUG] validateToken: demo sentinel present — skipping backend validation');
+    return true;
+  }
+  try {
+    await api.get('/api/auth/me');
+    console.log('[AUTH_DEBUG] validateToken: backend confirmed token valid');
+    return true;
+  } catch (err: any) {
+    if (err?.response?.status === 401) {
+      // Backend explicitly rejected the JWT; remove it now so AuthContext doesn't
+      // need a second pass. The response interceptor will also call _unauthorizedHandler.
+      console.warn('[AUTH_DEBUG] validateToken: backend returned 401 — token is stale, cleared');
+      await AsyncStorage.removeItem('groveno_token');
+      return false;
+    }
+    // Network error or 5xx — optimistically keep the user in
+    console.warn('[AUTH_DEBUG] validateToken: network/server error, keeping token:', err?.message);
+    return true;
+  }
+}
+
 /**
  * Verifies OTP for the demo phone (+911234567890 / OTP 1234).
  *
@@ -53,7 +89,7 @@ export async function verifyOtpMock(
     const { token, user } = res.data as { token: string; user: User };
     await AsyncStorage.setItem('groveno_token', token);
     await AsyncStorage.setItem('groveno_user', JSON.stringify(user));
-    console.log('[authService] verifyOtpMock: real backend JWT stored for demo user');
+    console.log(`[AUTH_DEBUG] verifyOtpMock: real JWT stored (${token.length} chars, starts ${token.slice(0, 10)}...)`);
     return { token, user };
   } catch (err: any) {
     // Only fall back to offline sentinel when there is NO HTTP response (network/timeout).
@@ -61,7 +97,7 @@ export async function verifyOtpMock(
     if (err?.response) {
       throw err;
     }
-    console.warn('[authService] verifyOtpMock: backend unreachable — using offline demo sentinel');
+    console.warn('[AUTH_DEBUG] verifyOtpMock: backend unreachable — using offline demo sentinel');
     const demoUser: User = {
       _id: 'demo_user_001',
       name: 'Demo User',
@@ -73,6 +109,7 @@ export async function verifyOtpMock(
     };
     await AsyncStorage.setItem('groveno_token', DEMO_TOKEN_OFFLINE);
     await AsyncStorage.setItem('groveno_user', JSON.stringify(demoUser));
+    console.log('[AUTH_DEBUG] verifyOtpMock: offline demo sentinel stored');
     return { token: DEMO_TOKEN_OFFLINE, user: demoUser };
   }
 }

@@ -215,7 +215,7 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - **Cart Category data loss (CartItem missing category field)** — **FIXED Iteration 13** [P0 ✓]
 - **Order payload field mismatch (product→productId, qty→quantity)** — **FIXED Iteration 13** [P0 ✓]
 - **Address format mismatch (society/flat→line1+pincode)** — **FIXED Iteration 13** [P0 ✓]
-- **Demo fallback hiding real order failure (`getMyOrders` returning DEMO_ORDER_STORE for real users)** — **FIXED Iteration 14** [P0 ✓]
+- **Auth startup token validation + mid-session 401 redirect** — **FIXED Iteration 15** [P0 ✓]
 - **Demo login producing offline sentinel instead of real backend JWT** — **FIXED Iteration 14** [P0 ✓]
 - **Category missing from MongoDB order items** — **FIXED Iteration 14** [P0 ✓]
 - Real Firebase Phone Auth — DONE (code + packages in place; needs `google-services.json` + Firebase credentials to activate for real phones). [P1 ✓]
