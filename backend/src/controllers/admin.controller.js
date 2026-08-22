@@ -3,7 +3,7 @@ const User = require('../models/User');
 const CommunityLeader = require('../models/CommunityLeader');
 const WalletTransaction = require('../models/WalletTransaction');
 const CoinTransaction = require('../models/CoinTransaction');
-const { asyncHandler } = require('../utils/helpers');
+const { asyncHandler, generateCLCode } = require('../utils/helpers');
 const { creditCoinsIfCLOrder } = require('./location.controller');
 
 // Dashboard
@@ -131,6 +131,42 @@ exports.listCLs = asyncHandler(async (req, res) => {
     CommunityLeader.countDocuments(filter),
   ]);
   return res.json({ success: true, cls, total, page: Number(page), limit: Number(limit) });
+});
+
+exports.createCL = asyncHandler(async (req, res) => {
+  const { name, phone, email, password, societyName } = req.body;
+  if (!name || !phone || !email || !password || !societyName) {
+    return res.status(400).json({ success: false, message: 'All fields are required: name, phone, email, password, societyName' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+  }
+
+  const exists = await CommunityLeader.findOne({ $or: [{ email: email.toLowerCase() }, { phone }] });
+  if (exists) {
+    return res.status(409).json({ success: false, message: 'A CL with this email or phone already exists' });
+  }
+
+  // Generate a unique CL code (up to 5 attempts for collision safety)
+  let clCode;
+  for (let i = 0; i < 5; i++) {
+    clCode = generateCLCode();
+    const dup = await CommunityLeader.findOne({ clCode });
+    if (!dup) break;
+  }
+
+  const cl = new CommunityLeader({
+    name,
+    phone,
+    email: email.toLowerCase(),
+    societyName,
+    clCode,
+    status: 'approved', // admin-created CLs are immediately active
+  });
+  await cl.setPassword(password);
+  await cl.save();
+
+  return res.status(201).json({ success: true, cl });
 });
 
 exports.approveCL = asyncHandler(async (req, res) => {

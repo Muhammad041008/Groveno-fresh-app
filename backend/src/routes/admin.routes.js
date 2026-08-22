@@ -16,6 +16,7 @@ router.post('/users/:id/credit-wallet', adminAuth, ctrl.creditUserWallet);
 
 // CLs
 router.get('/cls', adminAuth, ctrl.listCLs);
+router.post('/cls', adminAuth, ctrl.createCL);
 router.put('/cls/:id/approve', adminAuth, ctrl.approveCL);
 
 // Products

@@ -24,15 +24,6 @@ const api = axios.create({
 // Reads the stored JWT and attaches it as a Bearer token before every request.
 api.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('groveno_token');
-
-  // [AUTH_DEBUG] — remove these three lines once the auth issue is confirmed fixed
-  const path = (config.url ?? '').replace(config.baseURL ?? '', '');
-  if (token) {
-    console.log(`[AUTH_DEBUG] request → ${path} | token present (${token.length} chars, demo=${token === DEMO_SENTINEL})`);
-  } else {
-    console.warn(`[AUTH_DEBUG] request → ${path} | NO TOKEN IN ASYNCSTORAGE — Authorization header will be absent`);
-  }
-
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -50,9 +41,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       const tok = await AsyncStorage.getItem('groveno_token');
       if (tok && tok !== DEMO_SENTINEL) {
-        console.warn('[AUTH_DEBUG] 401 received with real JWT — removing stale token and notifying app');
         await AsyncStorage.removeItem('groveno_token');
-        // Notify AuthContext so the UI redirects to Login immediately
         _unauthorizedHandler?.();
       }
     }

@@ -27,6 +27,73 @@ export interface Product {
   totalRatings?: number;
 }
 
+// ── Backend product shape (what /api/products actually returns) ────────────
+interface BackendVariant {
+  _id: string;
+  size: 'small' | 'medium' | 'large';
+  label: string;
+  price: number;
+  mrp: number;
+  stock: number;
+  unit: string;
+}
+
+interface BackendProduct {
+  _id: string;
+  name: string;
+  description?: string;
+  category: string | Category;
+  images: string[];
+  variants: BackendVariant[];
+  isExpress: boolean;
+  isOrganic?: boolean;
+  tags: string[];
+  avgRating: number;
+  ratingCount: number;
+  isActive: boolean;
+}
+
+/**
+ * Translates a raw backend product document to the frontend Product interface.
+ *
+ * Variant selection mirrors the backend expandItems() fallback exactly:
+ *   1. variantId  (not sent by mobile checkout → never selected)
+ *   2. variantSize (not sent by mobile checkout → never selected)
+ *   3. variants[0]  ← always used by the current mobile checkout flow
+ *
+ * This keeps the displayed price consistent with what is charged at order time.
+ * No numeric fallbacks (|| 0) — missing variants surface as a data error.
+ */
+function mapProduct(raw: BackendProduct): Product {
+  if (!raw.variants || raw.variants.length === 0) {
+    throw new Error(`Product "${raw.name}" has no variants — cannot determine price`);
+  }
+  // variants[0] is the default purchasable variant (matches expandItems fallback)
+  const v0 = raw.variants[0];
+
+  // Use the first non-system tag as the display badge (skip 'featured', 'organic')
+  const systemTags = new Set(['featured', 'organic']);
+  const badgeTag = raw.tags?.find((t) => !systemTags.has(t));
+
+  return {
+    _id: raw._id,
+    name: raw.name,
+    category: raw.category,
+    weight: v0.label,
+    price: v0.price,
+    mrp: v0.mrp,
+    imageUrl: raw.images?.[0] ?? undefined,
+    emoji: '🛒', // generic fallback shown only when imageUrl is absent
+    badge: badgeTag,
+    description: raw.description,
+    inStock: raw.isActive,
+    availableForExpress: raw.isExpress,
+    featured: raw.tags?.includes('featured') ?? false,
+    avgRating: raw.avgRating,
+    totalRatings: raw.ratingCount,
+  };
+}
+
 export interface ProductsResponse {
   products: Product[];
   total: number;
@@ -81,15 +148,22 @@ export async function getProducts(params: {
 }): Promise<ProductsResponse> {
   try {
     const res = await api.get('/api/products', { params });
-    if (Array.isArray(res.data)) {
-      const list = res.data as Product[];
-      return { products: list.length > 0 ? list : DEMO_PRODUCTS, total: list.length, page: 1, pages: 1 };
-    }
-    const data = res.data as ProductsResponse;
-    if (!data.products || data.products.length === 0) {
+    const rawList: BackendProduct[] = Array.isArray(res.data)
+      ? res.data
+      : (res.data as { products: BackendProduct[] }).products ?? [];
+
+    if (rawList.length === 0) {
       return { products: DEMO_PRODUCTS, total: DEMO_PRODUCTS.length, page: 1, pages: 1 };
     }
-    return data;
+
+    const products = rawList.map(mapProduct);
+    const meta = Array.isArray(res.data) ? { total: products.length, page: 1, pages: 1 } : {
+      total: (res.data as any).total ?? products.length,
+      page: (res.data as any).page ?? 1,
+      pages: (res.data as any).pages ?? 1,
+    };
+
+    return { products, ...meta };
   } catch {
     let products = DEMO_PRODUCTS;
     if (params.search) {
@@ -109,7 +183,8 @@ export async function getProducts(params: {
 export async function getProductById(id: string): Promise<Product> {
   try {
     const res = await api.get(`/api/products/${id}`);
-    return res.data.product ?? res.data;
+    const raw: BackendProduct = res.data.product ?? res.data;
+    return mapProduct(raw);
   } catch {
     return DEMO_PRODUCTS.find((p) => p._id === id) ?? DEMO_PRODUCTS[0];
   }

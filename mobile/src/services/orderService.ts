@@ -9,11 +9,20 @@ const DEMO_TOKEN = 'demo_jwt_groveno_offline';
 const DEMO_CL_CODE = 'CLDEMO123';
 
 export interface OrderItem {
-  product: string;
+  // Backend expandItems() stores these field names:
+  productId?: string;   // ObjectId string of the product
   name: string;
-  price: number;
-  qty: number;
-  total: number;
+  quantity?: number;    // backend field name
+  price: number;        // variant price
+  mrp?: number;
+  subtotal?: number;    // backend field name (price × quantity)
+  variantLabel?: string; // e.g. "500g", "1kg"
+  variantSize?: string;
+  image?: string;       // backend stores images[0] here
+  // Legacy mobile field names kept for backward compat with in-session demo orders:
+  product?: string;     // old field alias for productId
+  qty?: number;         // old field alias for quantity
+  total?: number;       // old field alias for subtotal
   emoji?: string;
 }
 

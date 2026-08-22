@@ -168,7 +168,9 @@ export default function MyOrdersScreen() {
                             orderNumber: item.orderNumber,
                             items: item.items.map((i) => ({
                               name: i.name,
-                              productId: i.product,
+                              // Backend expandItems stores the field as 'productId';
+                              // the legacy OrderItem interface used 'product' — check both.
+                              productId: (i as any).productId ?? (i as any).product ?? '',
                               emoji: (i as any).emoji,
                             })),
                           })

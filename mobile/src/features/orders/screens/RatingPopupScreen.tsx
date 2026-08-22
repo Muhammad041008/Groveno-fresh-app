@@ -75,7 +75,7 @@ export default function RatingPopupScreen() {
               <View style={styles.stars}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <TouchableOpacity
-                    key={star}
+                    key={`${item.productId}-star-${star}`}
                     onPress={() => setRating(item.productId, star)}
                     activeOpacity={0.7}
                   >

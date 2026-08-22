@@ -47,7 +47,30 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - Full Vite + Tailwind Admin Panel — 13 pages (Login, Dashboard, Products, ProductForm, Categories, Orders, OrderDetail, Express Pickup Live, PickupPoints, Users, UserDetail, CLs, Wallet, Reports).
 - **80/80 backend + 100% UI tests pass**.
 
-### Iteration 13 — Bug Fixes: Token Auth + Category + Payload (Aug 2026)
+### Iteration 16 — Bug Fixes: Product Mapping + Auth + Admin CL + Key Warning (Feb 2026)
+
+**Bug 1 — Mobile NaN prices (FIXED):**
+- Root cause: `productService.ts` `getProducts()` / `getProductById()` returned raw backend docs. Backend `Product` model stores price inside `variants: [{size, label, price, mrp}]`; no top-level `price` field. Mobile `Product` interface expected top-level `price` → `undefined` → rendered as `NaN`.
+- Fix: Added `mapProduct(raw: BackendProduct): Product` helper. Uses `variants[0]` (matching `expandItems()` fallback in backend order controller). Maps `variants[0].price → price`, `variants[0].mrp → mrp`, `variants[0].label → weight`. Applied in both `getProducts()` and `getProductById()`. No `|| 0` masking; missing variants surface as a thrown error.
+
+**Bug 2 — Mobile broken images (FIXED):**
+- Root cause: Backend `Product.images` is an array `[String]`; no top-level `imageUrl` field. Frontend `ProductCard.tsx` rendered `product.imageUrl` which was `undefined` → broken image placeholder.
+- Fix: `mapProduct()` maps `images[0] → imageUrl`. Products with empty images array render with generic fallback emoji `'🛒'`.
+
+**Bug 3 — verifyOtpMock silently using demo sentinel on Axios timeout (FIXED):**
+- Root cause: `verifyOtpMock()` catch block only checked `err?.response` to distinguish HTTP errors from non-response errors. Axios timeouts (`err.code = 'ECONNABORTED'`) have no `.response` → treated same as network-down → demo sentinel stored silently.
+- Fix: Added explicit ECONNABORTED check before the offline fallback. Timeout now throws `'OTP verification timed out...'` instead of silently using demo mode. Only genuine `ERR_NETWORK` (device truly offline) falls back to demo sentinel.
+
+**Bug 4 — React key warning in RatingPopupScreen (FIXED):**
+- Root cause: `MyOrdersScreen.tsx` built RatingPopup navigation params with `productId: i.product`. Backend `expandItems()` stores items with field name `productId` (not `product`). So `i.product = undefined` → all items had key `undefined` → React "duplicate key" warning.
+- Fix: `MyOrdersScreen.tsx` now uses `productId: (i as any).productId ?? (i as any).product ?? ''`. `RatingPopupScreen.tsx` star keys changed to `key={\`${item.productId}-star-${star}\`}` for global uniqueness.
+
+**Task 1 — Admin CL creation form (DONE):**
+- Backend: Added `createCL` export to `admin.controller.js`. Imports `generateCLCode` from helpers. Validates all fields, prevents duplicate email/phone (409), hashes password via `cl.setPassword()`, sets `status: 'approved'` (admin-created CLs are immediately active). Added `POST /api/admin/cls` to `admin.routes.js`.
+- Frontend: Added "Add Community Leader" button + full modal form (Name, Phone, Email, Society, Password) to `CLs.jsx`. On success: toast + reload table. Uses existing Tailwind/Lucide design system.
+
+**TypeScript: 0 errors | All 11 backend + UI tests pass (100%)**
+
 
 **Bug 1 — Axios response interceptor wiping demo token (FIXED):**
 - Root cause: `api.ts` response interceptor called `AsyncStorage.removeItem('groveno_token')` on ANY 401.
@@ -218,11 +241,17 @@ Groveno Fresh — a community grocery delivery app with 3 order channels + Admin
 - **Auth startup token validation + mid-session 401 redirect** — **FIXED Iteration 15** [P0 ✓]
 - **Demo login producing offline sentinel instead of real backend JWT** — **FIXED Iteration 14** [P0 ✓]
 - **Category missing from MongoDB order items** — **FIXED Iteration 14** [P0 ✓]
+- **Mobile NaN prices (variants[0].price not mapped to top-level price)** — **FIXED Iteration 16** [P0 ✓]
+- **Mobile broken images (images[0] not mapped to imageUrl)** — **FIXED Iteration 16** [P0 ✓]
+- **verifyOtpMock silently using demo sentinel on Axios timeout** — **FIXED Iteration 16** [P1 ✓]
+- **Admin CL creation form (POST /api/admin/cls + modal in Admin Panel)** — **FIXED Iteration 16** [P1 ✓]
+- **React key warning in RatingPopupScreen (i.product→i.productId fix)** — **FIXED Iteration 16** [P2 ✓]
 - Real Firebase Phone Auth — DONE (code + packages in place; needs `google-services.json` + Firebase credentials to activate for real phones). [P1 ✓]
 - Real Razorpay payment gateway integration (currently mocked). [P1]
 - Push notifications on order lifecycle events (out_for_delivery, arrived, delivered). [P1]
 - Track My Order screen (Express Pickup) — DONE. [P2 ✓]
 - Track My Order screen (Home Delivery / CL Order — delivery status timeline) — DONE Iteration 11. [P2 ✓]
+- CL Wallet "Withdraw" backend functionality. [P2]
 - CL commission auto-payout via Razorpay Payouts (currently manual "Withdraw — coming soon"). [P2]
 - EAS Build setup for production APK/IPA. [P2]
 - CL Society gamification (badge unlocks for society CLs). [P2]

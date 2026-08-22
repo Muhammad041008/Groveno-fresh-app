@@ -89,15 +89,22 @@ export async function verifyOtpMock(
     const { token, user } = res.data as { token: string; user: User };
     await AsyncStorage.setItem('groveno_token', token);
     await AsyncStorage.setItem('groveno_user', JSON.stringify(user));
-    console.log(`[AUTH_DEBUG] verifyOtpMock: real JWT stored (${token.length} chars, starts ${token.slice(0, 10)}...)`);
     return { token, user };
   } catch (err: any) {
-    // Only fall back to offline sentinel when there is NO HTTP response (network/timeout).
-    // If the backend returned a 4xx/5xx, propagate that error so it surfaces in the UI.
+    // Backend returned an HTTP error (4xx/5xx) — propagate so the real error surfaces in UI.
     if (err?.response) {
       throw err;
     }
-    console.warn('[AUTH_DEBUG] verifyOtpMock: backend unreachable — using offline demo sentinel');
+
+    // Axios request timeout (ECONNABORTED): backend may be reachable but slow.
+    // Never silently switch to demo mode on a timeout — throw instead so the user retries.
+    if (err?.code === 'ECONNABORTED') {
+      throw new Error('OTP verification timed out. Please check your connection and try again.');
+    }
+
+    // Genuine network unavailability (ERR_NETWORK / no connectivity at all).
+    // Fall back to offline demo sentinel so the app works without internet.
+    console.warn('[verifyOtpMock] Backend unreachable (device appears offline) — using offline demo sentinel');
     const demoUser: User = {
       _id: 'demo_user_001',
       name: 'Demo User',
@@ -109,7 +116,6 @@ export async function verifyOtpMock(
     };
     await AsyncStorage.setItem('groveno_token', DEMO_TOKEN_OFFLINE);
     await AsyncStorage.setItem('groveno_user', JSON.stringify(demoUser));
-    console.log('[AUTH_DEBUG] verifyOtpMock: offline demo sentinel stored');
     return { token: DEMO_TOKEN_OFFLINE, user: demoUser };
   }
 }
