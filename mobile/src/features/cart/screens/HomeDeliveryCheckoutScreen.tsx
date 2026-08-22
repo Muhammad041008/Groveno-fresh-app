@@ -88,6 +88,11 @@ export default function HomeDeliveryCheckoutScreen() {
         Alert.alert('CL Code Required', 'Please enter and validate your Community Leader code to continue.');
         return;
       }
+      // CL orders also require a delivery address (the CL delivers to the customer's door)
+      if (!address.society.trim() || !address.flat.trim() || !address.pincode.trim()) {
+        Alert.alert('Address Required', 'Please fill in your society name, flat number and pincode so your CL can deliver to you.');
+        return;
+      }
     } else {
       if (!address.society.trim() || !address.flat.trim() || !address.pincode.trim()) {
         Alert.alert('Address Required', 'Please fill in your society name, flat number and pincode.');
@@ -102,19 +107,20 @@ export default function HomeDeliveryCheckoutScreen() {
         productId: i.id,
         quantity: i.qty,
       }));
+      // Backend homeDelivery validates address.line1 and address.pincode — always required
+      const deliveryAddress = {
+        line1: [address.flat, address.tower, address.society].filter(Boolean).join(', '),
+        pincode: address.pincode,
+        society: address.society,
+        tower: address.tower,
+        flat: address.flat,
+      };
       navigation.navigate('Payment', {
         channel: mode,
         total: grandTotal,
         orderData: {
           items: orderItems,
-          // Backend homeDelivery validates address.line1 and address.pincode
-          address: isCL ? undefined : {
-            line1: [address.flat, address.tower, address.society].filter(Boolean).join(', '),
-            pincode: address.pincode,
-            society: address.society,
-            tower: address.tower,
-            flat: address.flat,
-          },
+          address: deliveryAddress,
           deliverySlot: isCL ? slot : 'standard',
           clCode: isCL && clInfo?.valid ? clCode : undefined,
           coinsToUse: coinsDiscount,
@@ -186,7 +192,7 @@ export default function HomeDeliveryCheckoutScreen() {
               )}
             </View>
 
-            {/* CL MODE: Delivery Slot (Morning / Evening only) */}
+            {/* ── CL MODE: Delivery Slot (Morning / Evening only) */}
             <SectionTitle>Choose Delivery Slot</SectionTitle>
             {CL_SLOTS.map((s) => (
               <TouchableOpacity
@@ -205,6 +211,40 @@ export default function HomeDeliveryCheckoutScreen() {
                 </View>
               </TouchableOpacity>
             ))}
+
+            {/* CL MODE: Delivery Address (CL delivers to customer's door) */}
+            <SectionTitle>Your Delivery Address *</SectionTitle>
+            <View style={styles.card}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 10, lineHeight: 16 }}>
+                Your Community Leader will deliver to this address within the society.
+              </Text>
+              <InputField
+                label="Society / Apartment Name *"
+                value={address.society}
+                onChangeText={(t) => setAddress((a) => ({ ...a, society: t }))}
+                placeholder="e.g. Nirala Estate"
+              />
+              <InputField
+                label="Tower / Building"
+                value={address.tower}
+                onChangeText={(t) => setAddress((a) => ({ ...a, tower: t }))}
+                placeholder="e.g. Tower B"
+              />
+              <InputField
+                label="Flat / House Number *"
+                value={address.flat}
+                onChangeText={(t) => setAddress((a) => ({ ...a, flat: t }))}
+                placeholder="e.g. Flat 403"
+              />
+              <InputField
+                label="Pincode *"
+                value={address.pincode}
+                onChangeText={(t) => setAddress((a) => ({ ...a, pincode: t }))}
+                placeholder="e.g. 201301"
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+            </View>
           </>
         )}
 
